@@ -166,12 +166,12 @@ export default function RecordScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#0b0b0b" },
-  content: { flex: 1, padding: 24, justifyContent: "space-between" },
+  content: { flex: 1, padding: 24, },
   progress: { flexDirection: "row", gap: 6, marginTop: 8 },
   progressUnit: { flex: 1, height: 3, backgroundColor: "#252525", borderRadius: 99 },
   progressActive: { backgroundColor: "#efefef" },
   eyebrow: { color: "#666", letterSpacing: 2, fontSize: 11, fontWeight: "800", marginBottom: 12 },
-  question: { color: "#fff", fontSize: 30, lineHeight: 41, fontWeight: "800", maxWidth: 340 },
+  question: { color: "#fff", fontSize: 30, lineHeight: 41, fontWeight: "800", maxWidth: 340, marginBottom: 32 },
   options: { gap: 10 },
   option: { backgroundColor: "#151515", borderRadius: 15, padding: 17, flexDirection: "row", justifyContent: "space-between" },
   optionText: { color: "#d0d0d0", fontSize: 15 },
