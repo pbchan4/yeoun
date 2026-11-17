@@ -1,5 +1,6 @@
 import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
+import { CHECKPOINTS } from "./checkpoints";
 
 export async function prepareNotifications() {
   if (Platform.OS === "android") {
@@ -16,46 +17,68 @@ export async function prepareNotifications() {
   return requested.status === "granted";
 }
 
+/** 밤 11시~아침 8시에는 알림이 울리지 않도록 아침 8시로 미룬다. */
+function avoidQuietHours(date: Date) {
+  const d = new Date(date);
+  const hour = d.getHours();
+  if (hour >= 23) d.setDate(d.getDate() + 1);
+  if (hour >= 23 || hour < 8) d.setHours(8, 0, 0, 0);
+  return d;
+}
+
 export async function scheduleYeounReminders(
   movieTitle: string,
-  watchedAtIso: string
+  watchedAtIso: string,
+  recordId: string,
+  delayHours = 0
 ) {
   const allowed = await prepareNotifications();
   if (!allowed) return;
 
-  const watchedAt = new Date(watchedAtIso);
+  const watchedAt = new Date(watchedAtIso).getTime();
 
-  const day3 = new Date(watchedAt);
-  day3.setDate(day3.getDate() + 3);
-  day3.setHours(20, 0, 0, 0);
+  for (const checkpoint of CHECKPOINTS) {
+    // 첫인상을 남기기 전에 이미 지나간 시점은 건너뛴다.
+    if (checkpoint.hours <= delayHours) continue;
 
-  const day14 = new Date(watchedAt);
-  day14.setDate(day14.getDate() + 14);
-  day14.setHours(20, 0, 0, 0);
+    const when = avoidQuietHours(
+      new Date(watchedAt + checkpoint.hours * 60 * 60 * 1000)
+    );
+    if (when.getTime() <= Date.now()) continue;
 
-  await Notifications.scheduleNotificationAsync({
-    content: {
-      title: "3일이 지났어요.",
-      body: `아직 ${movieTitle}이(가) 마음에 남아 있나요?`,
-      data: { type: "yeoun-recheck", day: 3 },
-    },
-    trigger: {
-      type: Notifications.SchedulableTriggerInputTypes.DATE,
-      date: day3,
-      channelId: "yeoun-reminders",
-    },
-  });
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: checkpoint.notifyTitle,
+        body: checkpoint.notifyBody(movieTitle),
+        data: { type: "yeoun-recheck", hours: checkpoint.hours, recordId },
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DATE,
+        date: when,
+        channelId: "yeoun-reminders",
+      },
+    });
+  }
+}
 
-  await Notifications.scheduleNotificationAsync({
-    content: {
-      title: "2주가 지났어요.",
-      body: `${movieTitle}의 여운은 지금 얼마나 남아 있나요?`,
-      data: { type: "yeoun-recheck", day: 14 },
-    },
-    trigger: {
-      type: Notifications.SchedulableTriggerInputTypes.DATE,
-      date: day14,
-      channelId: "yeoun-reminders",
-    },
-  });
+/**
+ * 기록에 걸린 리마인더를 취소한다. hours를 주면 그 시점 알림만 취소한다.
+ * 기록을 삭제했거나 이미 그 시점의 여운을 남겼을 때 쓴다.
+ */
+export async function cancelReminders(recordId: string, hours?: number) {
+  const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+
+  await Promise.all(
+    scheduled
+      .filter((n) => {
+        const data = n.content.data as
+          | { recordId?: string; hours?: number }
+          | undefined;
+        return (
+          data?.recordId === recordId &&
+          (hours === undefined || data.hours === hours)
+        );
+      })
+      .map((n) => Notifications.cancelScheduledNotificationAsync(n.identifier))
+  );
 }

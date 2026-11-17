@@ -9,9 +9,14 @@ import {
   FlatList,
   Image,
   StatusBar,
+  Platform,
+
 } from "react-native";
 import { getRecords, YeounRecord } from "../lib/storage";
+import { getHistory, getLatest } from "../lib/resonance";
+import { CHECKPOINTS, formatCheckpoint } from "../lib/checkpoints";
 import { posterUrl } from "../lib/tmdb";
+import { fonts } from "../lib/typography";
 
 export default function HomeScreen() {
   const [records, setRecords] = useState<YeounRecord[]>([]);
@@ -24,24 +29,26 @@ export default function HomeScreen() {
 
   const featured = useMemo(() => {
     if (!records.length) return null;
-
-    return [...records].sort((a, b) => {
-      const ah = a.resonanceHistory ?? [];
-      const bh = b.resonanceHistory ?? [];
-
-      const ascore = ah.length ? ah[ah.length - 1].score : a.day0Score;
-      const bscore = bh.length ? bh[bh.length - 1].score : b.day0Score;
-
-      return bscore - ascore;
-    })[0];
+    return records.reduce((best, r) =>
+      getLatest(r).score > getLatest(best).score ? r : best
+    );
   }, [records]);
 
-  const getLatest = (item: YeounRecord) => {
-    const history = item.resonanceHistory ?? [];
-    return history.length
-      ? history[history.length - 1]
-      : { day: 0, score: item.day0Score };
-  };
+  // 알림을 놓쳤어도 여기서 바로 이어서 기록할 수 있게, 지금 물어볼 차례인 영화를 모은다.
+  const pending = useMemo(() => {
+    const now = Date.now();
+    const list: { record: YeounRecord; hours: number; label: string }[] = [];
+    for (const r of records) {
+      const elapsed = (now - new Date(r.watchedAt).getTime()) / (1000 * 60 * 60);
+      const done = new Set(getHistory(r).map((e) => e.hours));
+      const delay = r.firstImpressionDelayHours ?? 0;
+      const due = CHECKPOINTS.find(
+        (c) => c.hours > delay && elapsed >= c.hours && !done.has(c.hours)
+      );
+      if (due) list.push({ record: r, hours: due.hours, label: due.label });
+    }
+    return list;
+  }, [records]);
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -55,23 +62,36 @@ export default function HomeScreen() {
         ListHeaderComponent={
           <>
             <View style={styles.brandBlock}>
-              <View>
-                <Text style={styles.brand}>YEOUN</Text>
+              <View style={styles.brandCopy}>
+                <Image
+                  source={require("../../assets/images/yeoun-wordmark-light.png")}
+                  style={styles.logo}
+                  resizeMode="contain"
+                  accessibilityLabel="YEOUN"
+                />
                 <Text style={styles.tagline}>
-                  영화가 끝난 뒤, 여운은 시작된다.
+                  영화가 끝난 뒤,{"\n"}여운은 시작된다.
                 </Text>
               </View>
 
               <View style={styles.topActions}>
                 <Link href="/archive" asChild>
-                  <Pressable style={styles.iconButton}>
-                    <Text style={styles.iconButtonText}>A</Text>
+                  <Pressable
+                    style={styles.iconButton}
+                    accessibilityRole="button"
+                    accessibilityLabel="아카이브 보기"
+                  >
+                    <Text style={styles.iconButtonText}>아카이브</Text>
                   </Pressable>
                 </Link>
 
                 <Link href="/stats" asChild>
-                  <Pressable style={styles.iconButton}>
-                    <Text style={styles.iconButtonText}>M</Text>
+                  <Pressable
+                    style={styles.iconButton}
+                    accessibilityRole="button"
+                    accessibilityLabel="나의 여운 통계 보기"
+                  >
+                    <Text style={styles.iconButtonText}>나의 여운</Text>
                   </Pressable>
                 </Link>
               </View>
@@ -97,6 +117,40 @@ export default function HomeScreen() {
                 </Pressable>
               </Link>
             </View>
+
+            {pending.length > 0 && (
+              <View style={styles.pendingBlock}>
+                <Text style={styles.pendingEyebrow}>RECHECK</Text>
+                <Text style={styles.pendingTitle}>지금 물어볼 여운이 있어요</Text>
+
+                {pending.slice(0, 3).map((p) => (
+                  <Pressable
+                    key={p.record.id}
+                    style={styles.pendingCard}
+                    onPress={() =>
+                      router.push({
+                        pathname: "/recheck",
+                        params: { id: p.record.id, hours: String(p.hours) },
+                      })
+                    }
+                  >
+                    <View style={styles.pendingBody}>
+                      <Text numberOfLines={1} style={styles.pendingMovie}>
+                        {p.record.title}
+                      </Text>
+                      <Text style={styles.pendingLabel}>{p.label}의 여운 기록하기</Text>
+                    </View>
+                    <Text style={styles.pendingArrow}>→</Text>
+                  </Pressable>
+                ))}
+
+                {pending.length > 3 && (
+                  <Text style={styles.pendingMore}>
+                    그 외 {pending.length - 3}편은 최근 기록에서 열어 주세요.
+                  </Text>
+                )}
+              </View>
+            )}
 
             {featured && (() => {
               const latest = getLatest(featured);
@@ -137,9 +191,7 @@ export default function HomeScreen() {
 
                     <View style={styles.featuredMetaRow}>
                       <Text style={styles.featuredMeta}>
-                        {latest.day === 0
-                          ? "FIRST IMPRESSION"
-                          : `DAY ${latest.day}`}
+                        {formatCheckpoint(latest.hours)}
                       </Text>
 
                       <View style={styles.dot} />
@@ -225,9 +277,7 @@ export default function HomeScreen() {
                 <View style={styles.recordScoreRow}>
                   <View>
                     <Text style={styles.scoreEyebrow}>
-                      {latest.day === 0
-                        ? "FIRST IMPRESSION"
-                        : `DAY ${latest.day} · YEOUN`}
+                      {latest.hours === 0 ? formatCheckpoint(0) : `${formatCheckpoint(latest.hours)} · YEOUN`}
                     </Text>
 
                     <Text style={styles.recordScore}>
@@ -251,11 +301,18 @@ export default function HomeScreen() {
           );
         }}
         ListFooterComponent={
-          records.length > 0 ? (
-            <Text style={styles.footer}>
-              영화가 남긴 것을 천천히 모아보세요.
-            </Text>
-          ) : null
+          <View>
+            {records.length > 0 && (
+              <Text style={styles.footer}>
+                영화가 남긴 것을 천천히 모아보세요.
+              </Text>
+            )}
+            <Link href="/about" asChild>
+              <Pressable accessibilityRole="button" accessibilityLabel="앱 정보 보기">
+                <Text style={styles.aboutLink}>정보 · TMDB</Text>
+              </Pressable>
+            </Link>
+          </View>
         }
       />
     </SafeAreaView>
@@ -270,7 +327,8 @@ const styles = StyleSheet.create({
 
   content: {
     paddingHorizontal: 24,
-    paddingTop: 14,
+    // 안드로이드는 SafeAreaView가 상태 표시줄 높이를 비워 주지 않아 로고가 시계와 겹친다.
+    paddingTop: 14 + (Platform.OS === "android" ? StatusBar.currentHeight ?? 0 : 0),
     paddingBottom: 56,
   },
 
@@ -280,11 +338,13 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
   },
 
-  brand: {
-    color: "#F5F5F5",
-    fontSize: 34,
-    fontFamily: "PretendardSemiBold",
-    letterSpacing: 6.2,
+  brandCopy: {
+    flexShrink: 1,
+  },
+
+  logo: {
+  width: 150,
+  height: 58,
   },
 
   tagline: {
@@ -298,13 +358,14 @@ const styles = StyleSheet.create({
 
   topActions: {
     flexDirection: "row",
-    gap: 10,
+    gap: 8,
     paddingTop: 2,
+    flexShrink: 0,
   },
 
   iconButton: {
-    width: 50,
-    height: 50,
+    height: 36,
+    paddingHorizontal: 12,
     borderWidth: 1,
     borderColor: "#2A2A2A",
     borderRadius: 999,
@@ -314,9 +375,9 @@ const styles = StyleSheet.create({
 
   iconButtonText: {
     color: "#A7A7A7",
-    fontSize: 14,
-    fontFamily: "PretendardSemiBold",
-    letterSpacing: 1.2,
+    fontSize: 12,
+    fontFamily: "PretendardMedium",
+    letterSpacing: -0.1,
   },
 
   hero: {
@@ -326,9 +387,9 @@ const styles = StyleSheet.create({
 
   eyebrow: {
     color: "#6D6D6D",
-    fontSize: 10,
-    fontFamily: "PretendardMedium",
-    letterSpacing: 3.1,
+    fontSize: 13,
+    fontFamily: fonts.display,
+    letterSpacing: 2.4,
     marginBottom: 18,
   },
 
@@ -372,6 +433,70 @@ const styles = StyleSheet.create({
     color: "#111111",
     fontSize: 20,
     fontFamily: "PretendardRegular",
+  },
+
+  pendingBlock: {
+    marginBottom: 34,
+  },
+
+  pendingEyebrow: {
+    color: "#97B7A7",
+    fontSize: 13,
+    fontFamily: fonts.display,
+    letterSpacing: 2.2,
+    marginBottom: 7,
+  },
+
+  pendingTitle: {
+    color: "#F1F1F1",
+    fontSize: 20,
+    fontFamily: fonts.semibold,
+    letterSpacing: -0.4,
+    marginBottom: 14,
+  },
+
+  pendingCard: {
+    backgroundColor: "#141414",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#22373C",
+    paddingHorizontal: 18,
+    paddingVertical: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 10,
+  },
+
+  pendingBody: {
+    flex: 1,
+  },
+
+  pendingMovie: {
+    color: "#F2F2F2",
+    fontSize: 16,
+    fontFamily: fonts.semibold,
+    letterSpacing: -0.3,
+  },
+
+  pendingLabel: {
+    color: "#97B7A7",
+    fontSize: 12,
+    fontFamily: fonts.regular,
+    marginTop: 5,
+  },
+
+  pendingArrow: {
+    color: "#97B7A7",
+    fontSize: 20,
+    fontFamily: fonts.regular,
+    marginLeft: 12,
+  },
+
+  pendingMore: {
+    color: "#6D6D6D",
+    fontSize: 12,
+    fontFamily: fonts.regular,
+    marginTop: 2,
   },
 
   featured: {
@@ -421,9 +546,9 @@ const styles = StyleSheet.create({
 
   featuredEyebrow: {
     color: "#E5E5E5",
-    fontSize: 10,
-    fontFamily: "PretendardMedium",
-    letterSpacing: 3.0,
+    fontSize: 13,
+    fontFamily: fonts.display,
+    letterSpacing: 2.4,
     textShadowColor: "rgba(0,0,0,0.8)",
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 5,
@@ -470,9 +595,9 @@ const styles = StyleSheet.create({
 
   featuredScore: {
     color: "#FFFFFF",
-    fontSize: 15,
-    fontFamily: "PretendardSemiBold",
-    letterSpacing: -0.2,
+    fontSize: 20,
+    fontFamily: fonts.display,
+    letterSpacing: 0,
   },
 
   featuredCaption: {
@@ -493,9 +618,9 @@ const styles = StyleSheet.create({
 
   sectionEyebrow: {
     color: "#646464",
-    fontSize: 10,
-    fontFamily: "PretendardMedium",
-    letterSpacing: 2.8,
+    fontSize: 13,
+    fontFamily: fonts.display,
+    letterSpacing: 2.2,
     marginBottom: 7,
   },
 
@@ -622,9 +747,9 @@ const styles = StyleSheet.create({
 
   recordScore: {
     color: "#FFFFFF",
-    fontSize: 31,
-    fontFamily: "PretendardSemiBold",
-    letterSpacing: -0.6,
+    fontSize: 38,
+    fontFamily: fonts.display,
+    letterSpacing: 0,
     marginTop: 2,
   },
 
@@ -644,6 +769,15 @@ const styles = StyleSheet.create({
     height: "100%",
     backgroundColor: "#EAEAEA",
     borderRadius: 99,
+  },
+
+  aboutLink: {
+    color: "#555555",
+    textAlign: "center",
+    fontSize: 12,
+    fontFamily: "PretendardRegular",
+    marginTop: 22,
+    paddingVertical: 8,
   },
 
   footer: {

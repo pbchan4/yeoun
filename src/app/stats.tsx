@@ -8,6 +8,8 @@ import {
   View,
 } from "react-native";
 import { getRecords, YeounRecord } from "../lib/storage";
+import { getHistory, getLatest, STRONG_THRESHOLD } from "../lib/resonance";
+import { fonts } from "../lib/typography";
 
 export default function StatsScreen() {
   const [records, setRecords] = useState<YeounRecord[]>([]);
@@ -34,7 +36,7 @@ export default function StatsScreen() {
     );
 
     const longCount = records.filter((r) =>
-      (r.resonanceHistory ?? []).some((e) => e.day === 14 && e.score >= 80)
+      getHistory(r).some((e) => e.hours >= 72 && e.score >= STRONG_THRESHOLD)
     ).length;
 
     const rewatches = records.filter((r) => (r.rewatchIndex ?? 1) > 1).length;
@@ -43,9 +45,8 @@ export default function StatsScreen() {
     let strongestScore = -1;
 
     for (const record of records) {
-      const history = record.resonanceHistory ?? [];
-      const latest = history[history.length - 1];
-      if (latest && latest.score > strongestScore) {
+      const latest = getLatest(record);
+      if (latest.score > strongestScore) {
         strongestScore = latest.score;
         strongest = record;
       }
@@ -76,7 +77,7 @@ export default function StatsScreen() {
 
           <View style={styles.statCard}>
             <Text style={styles.statValue}>{stats.longCount}</Text>
-            <Text style={styles.statLabel}>14일 뒤에도 선명</Text>
+            <Text style={styles.statLabel}>3일 뒤에도 선명</Text>
           </View>
 
           <View style={styles.statCard}>
@@ -99,14 +100,14 @@ export default function StatsScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#0b0b0b" },
   content: { padding: 24, paddingBottom: 60 },
-  eyebrow: { color: "#666", letterSpacing: 2.2, fontSize: 11, fontWeight: "800" },
-  title: { color: "#fff", fontSize: 34, fontWeight: "900", marginTop: 10 },
-  sub: { color: "#888", fontSize: 15, lineHeight: 23, marginTop: 12, marginBottom: 30 },
+  eyebrow: { color: "#666", letterSpacing: 2.2, fontSize: 13, fontFamily: fonts.display },
+  title: { color: "#fff", fontSize: 34, marginTop: 10, fontFamily: fonts.semibold },
+  sub: { color: "#888", fontSize: 15, lineHeight: 23, marginTop: 12, marginBottom: 30, fontFamily: fonts.regular },
   grid: { gap: 12 },
   statCard: { backgroundColor: "#151515", borderRadius: 18, padding: 20 },
-  statValue: { color: "#fff", fontSize: 42, fontWeight: "900" },
-  statLabel: { color: "#777", marginTop: 4 },
+  statValue: { color: "#fff", fontSize: 52, fontFamily: fonts.display },
+  statLabel: { color: "#777", marginTop: 4, fontFamily: fonts.regular },
   highlight: { marginTop: 24, borderTopWidth: 1, borderBottomWidth: 1, borderColor: "#242424", paddingVertical: 24 },
-  highlightLabel: { color: "#666", fontSize: 12, letterSpacing: 1.1 },
-  highlightTitle: { color: "#fff", fontSize: 24, lineHeight: 32, fontWeight: "800", marginTop: 10 },
+  highlightLabel: { color: "#666", fontSize: 12, letterSpacing: 1.1, fontFamily: fonts.regular },
+  highlightTitle: { color: "#fff", fontSize: 24, lineHeight: 32, marginTop: 10, fontFamily: fonts.semibold },
 });

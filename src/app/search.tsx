@@ -1,5 +1,5 @@
 import { router } from "expo-router";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   SafeAreaView,
   StyleSheet,
@@ -14,24 +14,33 @@ import {
 } from "react-native";
 import { posterUrl, searchMovies, TmdbMovie } from "../lib/tmdb";
 import { findPreviousViewings } from "../lib/storage";
+import { fonts } from "../lib/typography";
 
 export default function SearchScreen() {
   const [query, setQuery] = useState("");
   const [movies, setMovies] = useState<TmdbMovie[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [searched, setSearched] = useState(false);
+  const requestId = useRef(0);
 
   const runSearch = async () => {
     if (!query.trim()) return;
+    // 늦게 도착한 이전 검색 결과가 최신 결과를 덮어쓰지 않도록 요청 번호로 거른다.
+    const current = ++requestId.current;
     setLoading(true);
     setError("");
 
     try {
-      setMovies(await searchMovies(query.trim()));
+      const result = await searchMovies(query.trim());
+      if (current !== requestId.current) return;
+      setMovies(result);
+      setSearched(true);
     } catch (e) {
+      if (current !== requestId.current) return;
       setError(e instanceof Error ? e.message : "검색에 실패했어요.");
     } finally {
-      setLoading(false);
+      if (current === requestId.current) setLoading(false);
     }
   };
 
@@ -67,7 +76,8 @@ export default function SearchScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.safe}>
+      <View style={styles.container}>
       <View style={styles.searchRow}>
         <TextInput
           value={query}
@@ -89,7 +99,13 @@ export default function SearchScreen() {
 
       <FlatList
         data={movies}
+        keyboardShouldPersistTaps="handled"
         keyExtractor={(item) => String(item.id)}
+        ListEmptyComponent={
+          searched && !loading && !error ? (
+            <Text style={styles.original}>검색 결과가 없어요.</Text>
+          ) : null
+        }
         contentContainerStyle={{ gap: 10, paddingTop: 18, paddingBottom: 50 }}
         renderItem={({ item }) => {
           const image = posterUrl(item.poster_path);
@@ -113,23 +129,25 @@ export default function SearchScreen() {
           );
         }}
       />
+      </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#0b0b0b", padding: 20 },
+  safe: { flex: 1, backgroundColor: "#0b0b0b" },
+  container: { flex: 1, padding: 20 },
   searchRow: { flexDirection: "row", gap: 8 },
-  input: { flex: 1, backgroundColor: "#171717", color: "#fff", paddingHorizontal: 16, paddingVertical: 15, borderRadius: 14, fontSize: 16 },
+  input: { flex: 1, backgroundColor: "#171717", color: "#fff", paddingHorizontal: 16, paddingVertical: 15, borderRadius: 14, fontSize: 16, fontFamily: fonts.regular },
   searchButton: { backgroundColor: "#f2f2f2", borderRadius: 14, justifyContent: "center", paddingHorizontal: 18 },
-  searchButtonText: { color: "#111", fontWeight: "800" },
-  error: { color: "#ff8d8d", marginTop: 18 },
+  searchButtonText: { color: "#111", fontFamily: fonts.semibold },
+  error: { color: "#ff8d8d", marginTop: 18, fontFamily: fonts.regular },
   movie: { backgroundColor: "#151515", borderRadius: 14, overflow: "hidden", flexDirection: "row", alignItems: "center" },
   poster: { width: 64, height: 96 },
   posterFallback: { width: 64, height: 96, backgroundColor: "#252525" },
   movieBody: { flex: 1, paddingHorizontal: 14 },
-  title: { color: "#fff", fontWeight: "700", fontSize: 16 },
-  original: { color: "#777", marginTop: 3, fontSize: 12 },
-  year: { color: "#999", marginTop: 6 },
-  arrow: { color: "#777", fontSize: 30, paddingRight: 14 },
+  title: { color: "#fff", fontSize: 16, fontFamily: fonts.semibold },
+  original: { color: "#777", marginTop: 3, fontSize: 12, fontFamily: fonts.regular },
+  year: { color: "#999", marginTop: 6, fontFamily: fonts.regular },
+  arrow: { color: "#777", fontSize: 30, paddingRight: 14, fontFamily: fonts.regular },
 });

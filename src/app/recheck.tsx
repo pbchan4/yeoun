@@ -9,6 +9,9 @@ import {
   Alert,
 } from "react-native";
 import { addResonanceEntry } from "../lib/storage";
+import { cancelReminders } from "../lib/notifications";
+import { CHECKPOINTS, formatCheckpoint } from "../lib/checkpoints";
+import { fonts } from "../lib/typography";
 
 const LEVELS = [
   { label: "거의 사라졌어요", value: 20 },
@@ -19,41 +22,55 @@ const LEVELS = [
 ];
 
 export default function RecheckScreen() {
-  const { id, day } = useLocalSearchParams<{ id?: string; day?: string }>();
+  const { id, hours } = useLocalSearchParams<{ id?: string; hours?: string }>();
   const [score, setScore] = useState<number | null>(null);
-  const targetDay = day === "14" ? 14 : 3;
+  const [saving, setSaving] = useState(false);
+  const target = CHECKPOINTS.find((c) => String(c.hours) === hours) ?? CHECKPOINTS[0];
+  const targetHours = target.hours;
 
   const save = async () => {
-    if (!id || score == null) return;
+    if (!id || score == null || saving) return;
+    setSaving(true);
 
-    const updated = await addResonanceEntry(id, {
-      day: targetDay,
-      score,
-      createdAt: new Date().toISOString(),
-    });
+    try {
+      const updated = await addResonanceEntry(id, {
+        hours: targetHours,
+        score,
+        createdAt: new Date().toISOString(),
+      });
 
-    if (!updated) {
-      Alert.alert("저장 실패", "기록을 찾지 못했어요.");
-      return;
+      if (!updated) {
+        Alert.alert("저장 실패", "기록을 찾지 못했어요.");
+        setSaving(false);
+        return;
+      }
+
+      // 이미 기록했으니 같은 날의 남은 알림은 취소한다.
+      cancelReminders(id, targetHours).catch(console.warn);
+
+      Alert.alert(
+        `${target.label} 여운 기록 완료`,
+        `지금의 여운은 ${score}입니다.`,
+        [
+          {
+            text: "변화 보기",
+            onPress: () =>
+              router.replace({ pathname: "/movie", params: { id } }),
+          },
+        ],
+        { cancelable: false }
+      );
+    } catch {
+      Alert.alert("저장 실패", "여운을 저장하지 못했어요. 다시 시도해 주세요.");
+      setSaving(false);
     }
-
-    Alert.alert(
-      `DAY ${targetDay} 여운 기록 완료`,
-      `지금의 여운은 ${score}입니다.`,
-      [
-        {
-          text: "변화 보기",
-          onPress: () => router.replace({ pathname: "/movie", params: { id } }),
-        },
-      ]
-    );
   };
 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
         <View>
-          <Text style={styles.day}>DAY {targetDay}</Text>
+          <Text style={styles.day}>{formatCheckpoint(targetHours)}</Text>
           <Text style={styles.title}>아직 이 영화가{"\n"}당신 안에 남아 있나요?</Text>
           <Text style={styles.sub}>
             좋았는지 다시 평가하지 않아도 돼요. 지금 떠오르는 정도만 기록하세요.
@@ -78,9 +95,9 @@ export default function RecheckScreen() {
         </View>
 
         <Pressable
-          disabled={score == null}
+          disabled={score == null || saving}
           onPress={save}
-          style={[styles.save, score == null && styles.disabled]}
+          style={[styles.save, (score == null || saving) && styles.disabled]}
         >
           <Text style={styles.saveText}>지금의 여운 남기기</Text>
         </Pressable>
@@ -92,15 +109,15 @@ export default function RecheckScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#0b0b0b" },
   content: { flex: 1, padding: 24, justifyContent: "space-between" },
-  day: { color: "#666", letterSpacing: 2.2, fontSize: 11, fontWeight: "800" },
-  title: { color: "#fff", fontSize: 30, lineHeight: 41, fontWeight: "800", marginTop: 12 },
-  sub: { color: "#888", fontSize: 15, lineHeight: 23, marginTop: 14 },
+  day: { color: "#666", letterSpacing: 2.2, fontSize: 13, fontFamily: fonts.display },
+  title: { color: "#fff", fontSize: 30, lineHeight: 41, marginTop: 12, fontFamily: fonts.semibold },
+  sub: { color: "#888", fontSize: 15, lineHeight: 23, marginTop: 14, fontFamily: fonts.regular },
   options: { gap: 10 },
   option: { backgroundColor: "#151515", borderRadius: 15, padding: 18 },
   selected: { backgroundColor: "#f1f1f1" },
-  optionText: { color: "#aaa", fontSize: 15 },
-  selectedText: { color: "#111", fontWeight: "800" },
+  optionText: { color: "#aaa", fontSize: 15, fontFamily: fonts.regular },
+  selectedText: { color: "#111", fontFamily: fonts.semibold },
   save: { backgroundColor: "#fff", borderRadius: 15, paddingVertical: 17, alignItems: "center" },
   disabled: { opacity: 0.3 },
-  saveText: { color: "#111", fontWeight: "800", fontSize: 16 },
+  saveText: { color: "#111", fontSize: 16, fontFamily: fonts.semibold },
 });

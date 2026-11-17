@@ -13,6 +13,8 @@ import {
 import { addRecord } from "../lib/storage";
 import { posterUrl } from "../lib/tmdb";
 import { scheduleYeounReminders } from "../lib/notifications";
+import { CHECKPOINTS } from "../lib/checkpoints";
+import { fonts } from "../lib/typography";
 
 const QUESTIONS = [
   { key: "immersion", eyebrow: "01 · 몰입", label: "보는 동안 얼마나 빠져들었나요?" },
@@ -29,6 +31,14 @@ const LEVELS = [
   { label: "아주 강하게", value: 100 },
 ];
 
+// 영화가 끝난 지 얼마나 됐는지. 이미 지나간 재확인 시점은 건너뛴다.
+const DELAY_OPTIONS = [
+  { label: "방금", hours: 0 },
+  { label: "1시간쯤", hours: 1 },
+  { label: "반나절쯤", hours: 6 },
+  { label: "하루 이상", hours: 24 },
+];
+
 export default function RecordScreen() {
   const params = useLocalSearchParams<{
     tmdbId?: string;
@@ -43,6 +53,8 @@ export default function RecordScreen() {
   const [answers, setAnswers] = useState<Record<string, number>>({});
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [delayHours, setDelayHours] = useState(0);
 
   const score = useMemo(() => {
     const values = Object.values(answers);
@@ -54,42 +66,53 @@ export default function RecordScreen() {
   const complete = Object.keys(answers).length === QUESTIONS.length;
   const image = posterUrl(params.posterPath);
   const rewatchIndex = Number(params.rewatchIndex ?? "1");
+  const nextLabel = CHECKPOINTS.find((c) => c.hours > delayHours)?.label ?? "나중에";
 
   const select = (value: number) => {
     setAnswers((prev) => ({ ...prev, [question.key]: value }));
-    setTimeout(() => {
-      if (step < QUESTIONS.length - 1) setStep(step + 1);
-    }, 100);
+    if (step < QUESTIONS.length - 1) setStep(step + 1);
+  };
+
+  const restart = () => {
+    setAnswers({});
+    setStep(0);
   };
 
   const save = async () => {
-    if (!complete || !params.tmdbId || saving) return;
+    if (!complete || !params.tmdbId || saving || saved) return;
     setSaving(true);
 
     try {
       const now = new Date().toISOString();
+      const id = `${Date.now()}-${params.tmdbId}`;
+      // 관람 시각은 "기록한 시각"이 아니라 영화가 끝난 시각으로 잡는다.
+      const finishedAt = new Date(Date.now() - delayHours * 60 * 60 * 1000).toISOString();
 
       await addRecord({
-        id: `${Date.now()}-${params.tmdbId}`,
+          id,
         tmdbId: Number(params.tmdbId),
         title: params.title ?? "제목 없음",
         originalTitle: params.originalTitle ?? "",
         posterPath: params.posterPath || null,
         releaseDate: params.releaseDate ?? "",
-        watchedAt: now,
+        watchedAt: finishedAt,
+        firstImpressionDelayHours: delayHours,
         day0Score: score,
         answers,
-        resonanceHistory: [{ day: 0, score, createdAt: now }],
+        resonanceHistory: [{ hours: 0, score, createdAt: now }],
         note: note.trim(),
         rewatchIndex,
       });
 
-      scheduleYeounReminders(params.title ?? "이 영화", now).catch(console.warn);
+      setSaved(true);
+
+      scheduleYeounReminders(params.title ?? "이 영화", finishedAt, id, delayHours).catch(console.warn);
 
       Alert.alert(
         rewatchIndex > 1 ? "재관람 기록 완료" : "첫인상이 기록됐어요",
-        `첫인상 지수는 ${score}입니다.\n3일 뒤, 진짜 여운을 다시 물어볼게요.`,
-        [{ text: "홈으로", onPress: () => router.replace("/") }]
+        `첫인상 지수는 ${score}입니다.\n${nextLabel}, 진짜 여운을 다시 물어볼게요.`,
+        [{ text: "홈으로", onPress: () => router.replace("/") }],
+        { cancelable: false }
       );
     } catch {
       Alert.alert("저장 실패", "기록을 저장하지 못했어요.");
@@ -109,6 +132,26 @@ export default function RecordScreen() {
           <Text style={styles.resultTitle}>{params.title}</Text>
           <Text style={styles.resultScore}>{score}</Text>
 
+          <Text style={extra.delayLabel}>영화가 끝난 지 얼마나 됐나요?</Text>
+          <View style={extra.chips}>
+            {DELAY_OPTIONS.map((o) => {
+              const active = delayHours === o.hours;
+              return (
+                <Pressable
+                  key={o.hours}
+                  onPress={() => setDelayHours(o.hours)}
+                  style={[extra.chip, active && extra.chipActive]}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: active }}
+                >
+                  <Text style={[extra.chipText, active && extra.chipTextActive]}>
+                    {o.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
           <TextInput
             value={note}
             onChangeText={setNote}
@@ -120,12 +163,18 @@ export default function RecordScreen() {
           />
 
           <Text style={styles.resultCopy}>
-            이건 아직 여운이 아니에요.{"\n"}3일 뒤, 이 영화가 얼마나 남았는지 다시 볼게요.
+            이건 아직 여운이 아니에요.{"\n"}{nextLabel}, 이 영화가 얼마나 남았는지 다시 볼게요.
           </Text>
 
-          <Pressable style={styles.saveButton} onPress={save} disabled={saving}>
+          <Pressable style={styles.saveButton} onPress={save} disabled={saving || saved}>
             <Text style={styles.saveButtonText}>{saving ? "저장 중..." : "첫인상 남기기"}</Text>
           </Pressable>
+
+          {!saved && (
+            <Pressable onPress={restart}>
+              <Text style={styles.back}>답변 다시 고르기</Text>
+            </Pressable>
+          )}
         </View>
       </SafeAreaView>
     );
@@ -141,7 +190,10 @@ export default function RecordScreen() {
         </View>
 
         <View>
-          <Text style={styles.eyebrow}>{question.eyebrow}</Text>
+          <Text style={styles.eyebrow}>
+            <Text style={styles.eyebrowNum}>{question.eyebrow.split(" · ")[0]}</Text>
+            {` · ${question.eyebrow.split(" · ")[1]}`}
+          </Text>
           <Text style={styles.question}>{question.label}</Text>
         </View>
 
@@ -170,20 +222,56 @@ const styles = StyleSheet.create({
   progress: { flexDirection: "row", gap: 6, marginTop: 8 },
   progressUnit: { flex: 1, height: 3, backgroundColor: "#252525", borderRadius: 99 },
   progressActive: { backgroundColor: "#efefef" },
-  eyebrow: { color: "#666", letterSpacing: 2, fontSize: 11, fontWeight: "800", marginBottom: 12 },
-  question: { color: "#fff", fontSize: 30, lineHeight: 41, fontWeight: "800", maxWidth: 340, marginBottom: 32 },
+  eyebrow: { color: "#666", fontSize: 12, marginBottom: 12, fontFamily: fonts.semibold },
+  eyebrowNum: { fontFamily: fonts.display, fontSize: 14, letterSpacing: 1.5 },
+  question: { color: "#fff", fontSize: 30, lineHeight: 41, maxWidth: 340, marginBottom: 32, fontFamily: fonts.semibold },
   options: { gap: 10 },
   option: { backgroundColor: "#151515", borderRadius: 15, padding: 17, flexDirection: "row", justifyContent: "space-between" },
-  optionText: { color: "#d0d0d0", fontSize: 15 },
-  optionValue: { color: "#666", fontWeight: "800" },
-  back: { color: "#666", textAlign: "center", paddingVertical: 16 },
+  optionText: { color: "#d0d0d0", fontSize: 15, fontFamily: fonts.regular },
+  optionValue: { color: "#666", fontSize: 17, fontFamily: fonts.display },
+  back: { color: "#666", textAlign: "center", paddingVertical: 16, fontFamily: fonts.regular },
   result: { flex: 1, padding: 24, justifyContent: "center", alignItems: "center" },
   resultPoster: { width: 118, height: 177, borderRadius: 15, marginBottom: 24 },
-  resultEyebrow: { color: "#666", letterSpacing: 2.4, fontSize: 11, fontWeight: "800" },
-  resultTitle: { color: "#fff", fontSize: 23, fontWeight: "800", marginTop: 10, textAlign: "center" },
-  resultScore: { color: "#fff", fontSize: 72, lineHeight: 84, fontWeight: "900", marginTop: 8 },
-  note: { width: "100%", minHeight: 88, backgroundColor: "#151515", borderRadius: 15, padding: 15, color: "#fff", textAlignVertical: "top", marginTop: 12, marginBottom: 16 },
-  resultCopy: { color: "#8b8b8b", textAlign: "center", lineHeight: 23, marginBottom: 24 },
+  resultEyebrow: { color: "#666", letterSpacing: 2.4, fontSize: 13, fontFamily: fonts.display },
+  resultTitle: { color: "#fff", fontSize: 23, marginTop: 10, textAlign: "center", fontFamily: fonts.semibold },
+  resultScore: { color: "#fff", fontSize: 88, lineHeight: 100, fontFamily: fonts.display, marginTop: 8 },
+  note: { width: "100%", minHeight: 88, backgroundColor: "#151515", borderRadius: 15, padding: 15, color: "#fff", textAlignVertical: "top", marginTop: 12, marginBottom: 16, fontFamily: fonts.regular },
+  resultCopy: { color: "#8b8b8b", textAlign: "center", lineHeight: 23, marginBottom: 24, fontFamily: fonts.regular },
   saveButton: { width: "100%", backgroundColor: "#f2f2f2", borderRadius: 15, paddingVertical: 17, alignItems: "center" },
-  saveButtonText: { color: "#111", fontWeight: "800", fontSize: 16 },
+  saveButtonText: { color: "#111", fontSize: 16, fontFamily: fonts.semibold },
+});
+
+const extra = StyleSheet.create({
+  delayLabel: {
+    color: "#929292",
+    fontSize: 12,
+    fontFamily: "PretendardRegular",
+    marginTop: 18,
+  },
+  chips: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 10,
+    marginBottom: 6,
+  },
+  chip: {
+    borderWidth: 1,
+    borderColor: "#2A2A2A",
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  chipActive: {
+    backgroundColor: "#F2F2F2",
+    borderColor: "#F2F2F2",
+  },
+  chipText: {
+    color: "#9B9B9B",
+    fontSize: 13,
+    fontFamily: "PretendardMedium",
+  },
+  chipTextActive: {
+    color: "#111111",
+  },
 });
