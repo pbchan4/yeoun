@@ -4,6 +4,27 @@ import { useFonts } from "expo-font";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
 import { InstrumentSerif_400Regular } from "@expo-google-fonts/instrument-serif";
+import Storage from "expo-sqlite/kv-store";
+import { getRecords } from "../lib/storage";
+import { rescheduleReminders } from "../lib/notifications";
+
+const LETTER_MIGRATION_KEY = "yeoun.migration.letter720.v1";
+
+/**
+ * 1.1.0에서 "한 달 뒤" 시점이 생겼다. 업데이트 전에 남긴 기록에는 그 알림이 걸려 있지 않으니
+ * 처음 한 번만, 아직 한 달이 안 지난 기록의 알림을 다시 건다. (권한이 없으면 조용히 넘어간다.)
+ */
+async function migrateLetterReminders() {
+  if (await Storage.getItem(LETTER_MIGRATION_KEY)) return;
+  const monthAgo = Date.now() - 720 * 60 * 60 * 1000;
+  const records = await getRecords();
+  for (const r of records) {
+    if (new Date(r.watchedAt).getTime() > monthAgo) {
+      await rescheduleReminders(r).catch(console.warn);
+    }
+  }
+  await Storage.setItem(LETTER_MIGRATION_KEY, new Date().toISOString());
+}
 
 SplashScreen.preventAutoHideAsync();
 
@@ -42,6 +63,8 @@ export default function RootLayout() {
         router.push({ pathname: "/movie", params: { id: data.recordId } });
       }
     };
+
+    migrateLetterReminders().catch(console.warn);
 
     const last = Notifications.getLastNotificationResponse();
     if (last) open(last);
@@ -83,6 +106,9 @@ export default function RootLayout() {
       <Stack.Screen name="archive" options={{ title: "아카이브" }} />
       <Stack.Screen name="edit" options={{ title: "기록 수정" }} />
       <Stack.Screen name="about" options={{ title: "정보" }} />
+      <Stack.Screen name="share" options={{ title: "여운 카드" }} />
+      <Stack.Screen name="recap" options={{ title: "올해의 여운" }} />
+      <Stack.Screen name="compare" options={{ title: "회차 비교" }} />
     </Stack>
   );
 }

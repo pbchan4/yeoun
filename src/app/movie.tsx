@@ -10,8 +10,8 @@ import {
   Pressable,
   Alert,
 } from "react-native";
-import { deleteRecord, getRecord, YeounRecord } from "../lib/storage";
-import { getHistory } from "../lib/resonance";
+import { deleteRecord, findPreviousViewings, getRecord, YeounRecord } from "../lib/storage";
+import { classify, describeChange, getHistory, TYPE_INFO } from "../lib/resonance";
 import { cancelReminders } from "../lib/notifications";
 import { CHECKPOINTS, formatCheckpoint, formatDelay } from "../lib/checkpoints";
 import { ResonanceStrip } from "../components/resonance-strip";
@@ -23,32 +23,20 @@ function hoursSince(iso: string) {
   return (Date.now() - new Date(iso).getTime()) / (1000 * 60 * 60);
 }
 
-function message(history: { score: number }[]) {
-  if (history.length === 1) return "첫인상이 기록됐어요. 진짜 여운은 시간이 지나면서 시작됩니다.";
-
-  const first = history[0].score;
-  const last = history[history.length - 1].score;
-  const diff = last - first;
-
-  if (diff >= 15) return "처음보다 더 깊게 남은 영화예요.";
-  if (diff >= 5) return "시간이 지나며 조금 더 선명해지고 있어요.";
-  if (diff <= -15) return "강했던 첫인상이 빠르게 옅어지고 있어요.";
-  if (diff <= -5) return "처음보다는 조금 흐려졌어요.";
-  return "처음의 감정이 비슷한 온도로 남아 있어요.";
-}
-
 export default function MovieScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const [record, setRecord] = useState<YeounRecord | null>(null);
   const [missing, setMissing] = useState(false);
+  const [viewingCount, setViewingCount] = useState(1);
 
   useFocusEffect(
     useCallback(() => {
       if (!id) return;
       getRecord(id)
-        .then((r) => {
+        .then(async (r) => {
           setRecord(r);
           setMissing(!r);
+          if (r) setViewingCount((await findPreviousViewings(r.tmdbId)).length);
         })
         .catch(console.error);
     }, [id])
@@ -97,6 +85,7 @@ export default function MovieScreen() {
   const image = posterUrl(record.posterPath);
   const history = getHistory(record);
   const firstDelay = record.firstImpressionDelayHours ?? 0;
+  const type = classify(record);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -122,7 +111,13 @@ export default function MovieScreen() {
         )}
 
         <View style={styles.statementBox}>
-          <Text style={styles.statement}>{message(history)}</Text>
+          {type && (
+            <Text style={styles.typeBadge}>
+              {TYPE_INFO[type].en} · {TYPE_INFO[type].label}
+            </Text>
+          )}
+          <Text style={styles.statement}>{describeChange(history)}</Text>
+          {type && <Text style={styles.typeBody}>{TYPE_INFO[type].body}</Text>}
         </View>
 
         <Text style={styles.sectionTitle}>여운의 흐름</Text>
@@ -146,6 +141,7 @@ export default function MovieScreen() {
               <View style={styles.barTrack}>
                 <View style={[styles.barFill, { width: `${entry.score}%` }]} />
               </View>
+              {!!entry.note && <Text style={styles.entryNote}>{entry.note}</Text>}
             </View>
           ))}
         </View>
@@ -167,6 +163,25 @@ export default function MovieScreen() {
         ))}
 
         <View style={styles.actions}>
+          <Pressable
+            style={styles.secondary}
+            onPress={() => router.push({ pathname: "/share", params: { id: record.id } })}
+          >
+            <Text style={styles.secondaryText}>여운 카드 공유</Text>
+          </Pressable>
+          {viewingCount > 1 && (
+            <Pressable
+              style={styles.secondary}
+              onPress={() =>
+                router.push({ pathname: "/compare", params: { tmdbId: String(record.tmdbId) } })
+              }
+            >
+              <Text style={styles.secondaryText}>회차 비교</Text>
+            </Pressable>
+          )}
+        </View>
+
+        <View style={[styles.actions, { marginTop: 10 }]}>
           <Pressable
             style={styles.secondary}
             onPress={() => router.push({ pathname: "/edit", params: { id: record.id } })}
@@ -197,6 +212,9 @@ const styles = StyleSheet.create({
   noteLabel: { color: "#666", fontSize: 11, letterSpacing: 1.2, fontFamily: fonts.semibold },
   noteText: { color: "#d8d8d8", fontSize: 16, lineHeight: 24, marginTop: 7, fontFamily: fonts.regular },
   statementBox: { marginTop: 28, marginBottom: 34, backgroundColor: "#151515", borderRadius: 18, padding: 20 },
+  typeBadge: { color: "#777", fontSize: 12, letterSpacing: 1.6, marginBottom: 8, fontFamily: fonts.display },
+  typeBody: { color: "#888", fontSize: 13, marginTop: 6, fontFamily: fonts.regular },
+  entryNote: { color: "#bbb", fontSize: 14, lineHeight: 21, marginTop: 10, fontFamily: fonts.regular },
   statement: { color: "#fff", fontSize: 18, lineHeight: 27, fontFamily: fonts.semibold },
   sectionTitleSpaced: { marginTop: 30 },
   sectionTitle: { color: "#fff", fontSize: 19, marginBottom: 14, fontFamily: fonts.semibold },

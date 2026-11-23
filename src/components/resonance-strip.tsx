@@ -12,7 +12,7 @@ type Props = {
 
 type Frame =
   | { kind: "done"; hours: number; label: string; score: number }
-  | { kind: "pending"; hours: number; label: string };
+  | { kind: "pending"; hours: number; label: string; ko: string };
 
 /**
  * 여운이 시간에 따라 어떻게 옅어지는지 포스터 한 장으로 보여준다.
@@ -32,7 +32,8 @@ export function ResonanceStrip({ history, posterUri, delayHours = 0 }: Props) {
     ...CHECKPOINTS.filter((c) => !done.has(c.hours) && c.hours > delayHours).map<Frame>((c) => ({
       kind: "pending",
       hours: c.hours,
-      label: c.label,
+      label: formatCheckpoint(c.hours),
+      ko: c.label,
     })),
   ].sort((a, b) => a.hours - b.hours);
 
@@ -48,7 +49,7 @@ export function ResonanceStrip({ history, posterUri, delayHours = 0 }: Props) {
             <View
               key={frame.hours}
               style={styles.item}
-              accessibilityLabel={`${frame.label} 여운 아직 기록하지 않음`}
+              accessibilityLabel={`${frame.ko} 여운 아직 기록하지 않음`}
             >
               <View style={[styles.frame, styles.pendingFrame]} />
               <Text style={styles.label} numberOfLines={1} adjustsFontSizeToFit>

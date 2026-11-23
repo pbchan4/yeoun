@@ -5,6 +5,8 @@ export type ResonanceEntry = {
   hours: number;
   score: number;
   createdAt: string;
+  /** 그 시점에 떠오른 한 줄. */
+  note?: string;
 };
 
 export type YeounRecord = {
@@ -22,6 +24,8 @@ export type YeounRecord = {
   rewatchIndex?: number;
   /** 영화가 끝난 뒤 몇 시간 만에 첫인상을 남겼는지. 없으면 0(직후). watchedAt은 영화가 끝난 시각이다. */
   firstImpressionDelayHours?: number;
+  /** TMDB 장르 id. 이 기능 이전 기록에는 없다. */
+  genreIds?: number[];
 };
 
 const KEY = "yeoun.records.v2";
@@ -32,6 +36,7 @@ type StoredEntry = {
   day?: number;
   score: number;
   createdAt: string;
+  note?: string;
 };
 
 function normalize(record: YeounRecord): YeounRecord {
@@ -42,6 +47,7 @@ function normalize(record: YeounRecord): YeounRecord {
       hours: e.hours ?? (e.day ?? 0) * 24,
       score: e.score,
       createdAt: e.createdAt,
+      ...(e.note ? { note: e.note } : {}),
     })),
   };
 }
@@ -111,4 +117,81 @@ export async function findPreviousViewings(tmdbId: number) {
       (a, b) =>
         new Date(b.watchedAt).getTime() - new Date(a.watchedAt).getTime()
     );
+}
+
+// ─── 백업 ────────────────────────────────────────────────
+
+export type BackupFile = {
+  app: "yeoun";
+  version: 1;
+  exportedAt: string;
+  records: YeounRecord[];
+};
+
+export async function exportData(): Promise<BackupFile> {
+  return {
+    app: "yeoun",
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    records: await getRecords(),
+  };
+}
+
+function isRecord(value: unknown): value is YeounRecord {
+  const r = value as YeounRecord;
+  return (
+    !!r &&
+    typeof r.id === "string" &&
+    typeof r.tmdbId === "number" &&
+    typeof r.title === "string" &&
+    typeof r.watchedAt === "string" &&
+    typeof r.day0Score === "number"
+  );
+}
+
+/**
+ * 백업 파일의 기록을 지금 기록과 합친다. 지우는 기록은 없다.
+ * 같은 id가 이미 있으면 여운 이력이 더 많은 쪽을 남긴다.
+ */
+export async function importData(text: string) {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    throw new Error("백업 파일을 읽을 수 없어요.");
+  }
+
+  const list = Array.isArray(parsed)
+    ? parsed
+    : (parsed as Partial<BackupFile>)?.app === "yeoun"
+      ? (parsed as BackupFile).records
+      : null;
+  if (!Array.isArray(list)) throw new Error("여운 백업 파일이 아니에요.");
+
+  const incoming = list.filter(isRecord).map(normalize);
+  const current = await getRecords();
+  const byId = new Map(current.map((r) => [r.id, r]));
+
+  const added: YeounRecord[] = [];
+  let updated = 0;
+
+  for (const record of incoming) {
+    const existing = byId.get(record.id);
+    if (!existing) {
+      byId.set(record.id, record);
+      added.push(record);
+    } else if (
+      (record.resonanceHistory?.length ?? 0) > (existing.resonanceHistory?.length ?? 0)
+    ) {
+      byId.set(record.id, record);
+      updated += 1;
+    }
+  }
+
+  const merged = Array.from(byId.values()).sort(
+    (a, b) => new Date(b.watchedAt).getTime() - new Date(a.watchedAt).getTime()
+  );
+  await saveRecords(merged);
+
+  return { added, updated, skipped: list.length - incoming.length };
 }

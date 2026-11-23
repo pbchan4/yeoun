@@ -57,6 +57,7 @@ export default function SearchScreen() {
           posterPath: item.poster_path ?? "",
           releaseDate: item.release_date ?? "",
           rewatchIndex: String(rewatchIndex),
+          genreIds: (item.genre_ids ?? []).join(","),
         },
       });
 
@@ -104,7 +105,7 @@ export default function SearchScreen() {
         ListEmptyComponent={
           searched && !loading && !error ? (
             <Text style={styles.original}>검색 결과가 없어요.</Text>
-          ) : null
+          ) : undefined
         }
         contentContainerStyle={{ gap: 10, paddingTop: 18, paddingBottom: 50 }}
         renderItem={({ item }) => {

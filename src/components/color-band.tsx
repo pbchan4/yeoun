@@ -1,4 +1,5 @@
 import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { fonts } from "../lib/typography";
 
 export type BandItem = {
   id: string;
@@ -49,7 +50,7 @@ const styles = StyleSheet.create({
   caption: {
     color: "#6D6D6D",
     fontSize: 11,
-    fontFamily: "PretendardRegular",
+    fontFamily: fonts.regular,
     marginTop: 8,
   },
 });

@@ -4,6 +4,7 @@ export type TmdbMovie = {
   original_title: string;
   release_date?: string;
   poster_path?: string | null;
+  genre_ids?: number[];
 };
 
 const TMDB_TOKEN = process.env.EXPO_PUBLIC_TMDB_TOKEN;

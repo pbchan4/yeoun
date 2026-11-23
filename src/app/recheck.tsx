@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from "expo-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   SafeAreaView,
   StyleSheet,
@@ -7,8 +7,12 @@ import {
   View,
   Pressable,
   Alert,
+  ScrollView,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
-import { addResonanceEntry } from "../lib/storage";
+import { addResonanceEntry, getRecord, YeounRecord } from "../lib/storage";
 import { cancelReminders } from "../lib/notifications";
 import { CHECKPOINTS, formatCheckpoint } from "../lib/checkpoints";
 import { fonts } from "../lib/typography";
@@ -25,8 +29,15 @@ export default function RecheckScreen() {
   const { id, hours } = useLocalSearchParams<{ id?: string; hours?: string }>();
   const [score, setScore] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
+  const [note, setNote] = useState("");
+  const [record, setRecord] = useState<YeounRecord | null>(null);
   const target = CHECKPOINTS.find((c) => String(c.hours) === hours) ?? CHECKPOINTS[0];
   const targetHours = target.hours;
+
+  useEffect(() => {
+    if (!id) return;
+    getRecord(id).then(setRecord).catch(console.warn);
+  }, [id]);
 
   const save = async () => {
     if (!id || score == null || saving) return;
@@ -37,6 +48,7 @@ export default function RecheckScreen() {
         hours: targetHours,
         score,
         createdAt: new Date().toISOString(),
+        ...(note.trim() ? { note: note.trim() } : {}),
       });
 
       if (!updated) {
@@ -66,49 +78,83 @@ export default function RecheckScreen() {
     }
   };
 
+  const letter = target.letter && !!record?.note;
+
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
-        <View>
-          <Text style={styles.day}>{formatCheckpoint(targetHours)}</Text>
-          <Text style={styles.title}>아직 이 영화가{"\n"}당신 안에 남아 있나요?</Text>
-          <Text style={styles.sub}>
-            좋았는지 다시 평가하지 않아도 돼요. 지금 떠오르는 정도만 기록하세요.
-          </Text>
-        </View>
-
-        <View style={styles.options}>
-          {LEVELS.map((item) => {
-            const selected = score === item.value;
-            return (
-              <Pressable
-                key={item.value}
-                style={[styles.option, selected && styles.selected]}
-                onPress={() => setScore(item.value)}
-              >
-                <Text style={[styles.optionText, selected && styles.selectedText]}>
-                  {item.label}
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
+        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+          <View>
+            <Text style={styles.day}>{formatCheckpoint(targetHours)}</Text>
+            {!!record && <Text style={styles.movie}>{record.title}</Text>}
+            <Text style={styles.title}>
+              {letter ? "한 달 전의 당신이\n남긴 한 줄이에요." : "아직 이 영화가\n당신 안에 남아 있나요?"}
+            </Text>
+            {letter ? (
+              <View style={styles.letter}>
+                <Text style={styles.letterText}>“{record!.note}”</Text>
+                <Text style={styles.letterDate}>
+                  {new Date(record!.watchedAt).toLocaleDateString("ko-KR")}
                 </Text>
-              </Pressable>
-            );
-          })}
-        </View>
+              </View>
+            ) : (
+              <Text style={styles.sub}>
+                좋았는지 다시 평가하지 않아도 돼요. 지금 떠오르는 정도만 기록하세요.
+              </Text>
+            )}
+          </View>
 
-        <Pressable
-          disabled={score == null || saving}
-          onPress={save}
-          style={[styles.save, (score == null || saving) && styles.disabled]}
-        >
-          <Text style={styles.saveText}>지금의 여운 남기기</Text>
-        </Pressable>
-      </View>
+          <View style={styles.options}>
+            {LEVELS.map((item) => {
+              const selected = score === item.value;
+              return (
+                <Pressable
+                  key={item.value}
+                  style={[styles.option, selected && styles.selected]}
+                  onPress={() => setScore(item.value)}
+                >
+                  <Text style={[styles.optionText, selected && styles.selectedText]}>
+                    {item.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          <TextInput
+            value={note}
+            onChangeText={setNote}
+            placeholder={letter ? "지금의 나는 이렇게 답해요." : "지금 떠오르는 장면이나 대사가 있나요? (선택)"}
+            placeholderTextColor="#666"
+            multiline
+            maxLength={140}
+            style={styles.note}
+          />
+
+          <Pressable
+            disabled={score == null || saving}
+            onPress={save}
+            style={[styles.save, (score == null || saving) && styles.disabled]}
+          >
+            <Text style={styles.saveText}>지금의 여운 남기기</Text>
+          </Pressable>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#0b0b0b" },
-  content: { flex: 1, padding: 24, justifyContent: "space-between" },
+  content: { flexGrow: 1, padding: 24, gap: 24, justifyContent: "space-between" },
+  movie: { color: "#888", fontSize: 14, marginTop: 8, fontFamily: fonts.medium },
+  letter: { marginTop: 18, borderLeftWidth: 2, borderLeftColor: "#555", paddingLeft: 14 },
+  letterText: { color: "#e6e6e6", fontSize: 18, lineHeight: 28, fontFamily: fonts.regular },
+  letterDate: { color: "#666", fontSize: 14, marginTop: 8, fontFamily: fonts.display },
+  note: { minHeight: 72, backgroundColor: "#151515", borderRadius: 15, padding: 15, color: "#fff", textAlignVertical: "top", fontFamily: fonts.regular },
   day: { color: "#666", letterSpacing: 2.2, fontSize: 13, fontFamily: fonts.display },
   title: { color: "#fff", fontSize: 30, lineHeight: 41, marginTop: 12, fontFamily: fonts.semibold },
   sub: { color: "#888", fontSize: 15, lineHeight: 23, marginTop: 14, fontFamily: fonts.regular },

@@ -34,6 +34,12 @@ export default function HomeScreen() {
     );
   }, [records]);
 
+  const thisYear = new Date().getFullYear();
+  const thisYearCount = useMemo(
+    () => records.filter((r) => new Date(r.watchedAt).getFullYear() === thisYear).length,
+    [records, thisYear]
+  );
+
   // 알림을 놓쳤어도 여기서 바로 이어서 기록할 수 있게, 지금 물어볼 차례인 영화를 모은다.
   const pending = useMemo(() => {
     const now = Date.now();
@@ -117,6 +123,21 @@ export default function HomeScreen() {
                 </Pressable>
               </Link>
             </View>
+
+            {thisYearCount > 0 && (
+              <Pressable
+                style={styles.recapBanner}
+                onPress={() =>
+                  router.push({ pathname: "/recap", params: { year: String(thisYear) } })
+                }
+              >
+                <View>
+                  <Text style={styles.recapEyebrow}>{thisYear} RECAP</Text>
+                  <Text style={styles.recapTitle}>올해 남은 여운 {thisYearCount}편 돌아보기</Text>
+                </View>
+                <Text style={styles.recapArrow}>→</Text>
+              </Pressable>
+            )}
 
             {pending.length > 0 && (
               <View style={styles.pendingBlock}>
@@ -320,6 +341,21 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
+  recapBanner: {
+    borderWidth: 1,
+    borderColor: "#2A2A2A",
+    borderRadius: 16,
+    paddingHorizontal: 18,
+    paddingVertical: 16,
+    marginBottom: 28,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  recapEyebrow: { color: "#6D6D6D", fontSize: 12, letterSpacing: 2, fontFamily: fonts.display },
+  recapTitle: { color: "#E6E6E6", fontSize: 15, marginTop: 4, fontFamily: fonts.medium },
+  recapArrow: { color: "#A7A7A7", fontSize: 18 },
+
   safe: {
     flex: 1,
     backgroundColor: "#0B0B0B",
@@ -350,7 +386,7 @@ const styles = StyleSheet.create({
   tagline: {
     color: "#929292",
     fontSize: 13,
-    fontFamily: "PretendardRegular",
+    fontFamily: fonts.regular,
     marginTop: 9,
     lineHeight: 20,
     letterSpacing: -0.2,
@@ -376,7 +412,7 @@ const styles = StyleSheet.create({
   iconButtonText: {
     color: "#A7A7A7",
     fontSize: 12,
-    fontFamily: "PretendardMedium",
+    fontFamily: fonts.medium,
     letterSpacing: -0.1,
   },
 
@@ -397,14 +433,14 @@ const styles = StyleSheet.create({
     color: "#F4F4F4",
     fontSize: 39,
     lineHeight: 54,
-    fontFamily: "PretendardMedium",
+    fontFamily: fonts.medium,
     letterSpacing: -1.45,
   },
 
   heroBody: {
     color: "#9B9B9B",
     fontSize: 15,
-    fontFamily: "PretendardRegular",
+    fontFamily: fonts.regular,
     lineHeight: 25,
     marginTop: 22,
     maxWidth: 342,
@@ -425,14 +461,14 @@ const styles = StyleSheet.create({
   primaryButtonText: {
     color: "#111111",
     fontSize: 16,
-    fontFamily: "PretendardSemiBold",
+    fontFamily: fonts.semibold,
     letterSpacing: -0.2,
   },
 
   primaryArrow: {
     color: "#111111",
     fontSize: 20,
-    fontFamily: "PretendardRegular",
+    fontFamily: fonts.regular,
   },
 
   pendingBlock: {
@@ -565,7 +601,7 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 24,
     lineHeight: 32,
-    fontFamily: "PretendardSemiBold",
+    fontFamily: fonts.semibold,
     letterSpacing: -0.7,
     textShadowColor: "rgba(0,0,0,0.75)",
     textShadowOffset: { width: 0, height: 1 },
@@ -581,7 +617,7 @@ const styles = StyleSheet.create({
   featuredMeta: {
     color: "#D0D0D0",
     fontSize: 10,
-    fontFamily: "PretendardMedium",
+    fontFamily: fonts.medium,
     letterSpacing: 1.8,
   },
 
@@ -603,7 +639,7 @@ const styles = StyleSheet.create({
   featuredCaption: {
     color: "#B8B8B8",
     fontSize: 12,
-    fontFamily: "PretendardRegular",
+    fontFamily: fonts.regular,
     lineHeight: 18,
     marginTop: 9,
     letterSpacing: -0.15,
@@ -627,14 +663,14 @@ const styles = StyleSheet.create({
   sectionTitle: {
     color: "#F1F1F1",
     fontSize: 22,
-    fontFamily: "PretendardSemiBold",
+    fontFamily: fonts.semibold,
     letterSpacing: -0.5,
   },
 
   viewAll: {
     color: "#818181",
     fontSize: 12,
-    fontFamily: "PretendardRegular",
+    fontFamily: fonts.regular,
     paddingVertical: 4,
   },
 
@@ -647,13 +683,13 @@ const styles = StyleSheet.create({
   emptyTitle: {
     color: "#F0F0F0",
     fontSize: 16,
-    fontFamily: "PretendardSemiBold",
+    fontFamily: fonts.semibold,
   },
 
   emptyBody: {
     color: "#777777",
     fontSize: 13,
-    fontFamily: "PretendardRegular",
+    fontFamily: fonts.regular,
     lineHeight: 21,
     marginTop: 8,
   },
@@ -701,7 +737,7 @@ const styles = StyleSheet.create({
     flexShrink: 1,
     color: "#F2F2F2",
     fontSize: 16,
-    fontFamily: "PretendardSemiBold",
+    fontFamily: fonts.semibold,
     letterSpacing: -0.35,
   },
 
@@ -713,20 +749,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 7,
     paddingVertical: 2,
     fontSize: 10,
-    fontFamily: "PretendardMedium",
+    fontFamily: fonts.medium,
   },
 
   chevron: {
     color: "#5C5C5C",
     fontSize: 25,
-    fontFamily: "PretendardRegular",
+    fontFamily: fonts.regular,
     marginLeft: 8,
   },
 
   recordDate: {
     color: "#626262",
     fontSize: 11,
-    fontFamily: "PretendardRegular",
+    fontFamily: fonts.regular,
     marginTop: 5,
   },
 
@@ -741,7 +777,7 @@ const styles = StyleSheet.create({
   scoreEyebrow: {
     color: "#6D6D6D",
     fontSize: 9,
-    fontFamily: "PretendardMedium",
+    fontFamily: fonts.medium,
     letterSpacing: 1.8,
   },
 
@@ -775,7 +811,7 @@ const styles = StyleSheet.create({
     color: "#555555",
     textAlign: "center",
     fontSize: 12,
-    fontFamily: "PretendardRegular",
+    fontFamily: fonts.regular,
     marginTop: 22,
     paddingVertical: 8,
   },
@@ -784,7 +820,7 @@ const styles = StyleSheet.create({
     color: "#555555",
     textAlign: "center",
     fontSize: 12,
-    fontFamily: "PretendardRegular",
+    fontFamily: fonts.regular,
     marginTop: 28,
   },
 });

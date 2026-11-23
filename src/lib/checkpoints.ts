@@ -7,7 +7,9 @@ export type Checkpoint = {
   label: string;
   prompt: string;
   notifyTitle: string;
-  notifyBody: (movieTitle: string) => string;
+  notifyBody: (movieTitle: string, note?: string) => string;
+  /** 첫날 남긴 한 줄을 다시 보여주는 "편지" 시점. */
+  letter?: boolean;
 };
 
 export const CHECKPOINTS: Checkpoint[] = [
@@ -31,6 +33,15 @@ export const CHECKPOINTS: Checkpoint[] = [
     prompt: "3일이 지났어요. 아직 이 영화가 마음에 남아 있나요?",
     notifyTitle: "3일이 지났어요.",
     notifyBody: (t) => `${t}의 여운은 지금 얼마나 남아 있나요?`,
+  },
+  {
+    hours: 720,
+    label: "한 달 뒤",
+    prompt: "한 달 전의 당신이 남긴 한 줄을 다시 읽어보세요.",
+    notifyTitle: "한 달 전의 당신이 보낸 편지",
+    notifyBody: (t, note) =>
+      note ? `"${note}" — ${t}을(를) 보고 남긴 한 줄이에요.` : `${t}을(를) 본 지 한 달, 아직 남아 있나요?`,
+    letter: true,
   },
 ];
 

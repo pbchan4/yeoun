@@ -15,13 +15,8 @@ import { posterUrl } from "../lib/tmdb";
 import { scheduleYeounReminders } from "../lib/notifications";
 import { CHECKPOINTS } from "../lib/checkpoints";
 import { fonts } from "../lib/typography";
-
-const QUESTIONS = [
-  { key: "immersion", eyebrow: "01 · 몰입", label: "보는 동안 얼마나 빠져들었나요?" },
-  { key: "emotion", eyebrow: "02 · 감정", label: "감정적으로 얼마나 크게 흔들렸나요?" },
-  { key: "thought", eyebrow: "03 · 생각", label: "엔딩 뒤에도 계속 생각이 이어지나요?" },
-  { key: "rewatch", eyebrow: "04 · 재회", label: "언젠가 다시 이 영화를 만나고 싶나요?" },
-];
+import { QUESTIONS } from "../lib/questions";
+import { parseGenreIds } from "../lib/genres";
 
 const LEVELS = [
   { label: "거의 없음", value: 20 },
@@ -47,6 +42,7 @@ export default function RecordScreen() {
     posterPath?: string;
     releaseDate?: string;
     rewatchIndex?: string;
+    genreIds?: string;
   }>();
 
   const [step, setStep] = useState(0);
@@ -102,11 +98,14 @@ export default function RecordScreen() {
         resonanceHistory: [{ hours: 0, score, createdAt: now }],
         note: note.trim(),
         rewatchIndex,
+        genreIds: parseGenreIds(params.genreIds),
       });
 
       setSaved(true);
 
-      scheduleYeounReminders(params.title ?? "이 영화", finishedAt, id, delayHours).catch(console.warn);
+      scheduleYeounReminders(params.title ?? "이 영화", finishedAt, id, delayHours, {
+        note: note.trim() || undefined,
+      }).catch(console.warn);
 
       Alert.alert(
         rewatchIndex > 1 ? "재관람 기록 완료" : "첫인상이 기록됐어요",
@@ -245,7 +244,7 @@ const extra = StyleSheet.create({
   delayLabel: {
     color: "#929292",
     fontSize: 12,
-    fontFamily: "PretendardRegular",
+    fontFamily: fonts.regular,
     marginTop: 18,
   },
   chips: {
@@ -269,7 +268,7 @@ const extra = StyleSheet.create({
   chipText: {
     color: "#9B9B9B",
     fontSize: 13,
-    fontFamily: "PretendardMedium",
+    fontFamily: fonts.medium,
   },
   chipTextActive: {
     color: "#111111",

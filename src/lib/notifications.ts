@@ -1,6 +1,7 @@
 import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
 import { CHECKPOINTS } from "./checkpoints";
+import type { YeounRecord } from "./storage";
 
 export async function prepareNotifications() {
   if (Platform.OS === "android") {
@@ -30,7 +31,8 @@ export async function scheduleYeounReminders(
   movieTitle: string,
   watchedAtIso: string,
   recordId: string,
-  delayHours = 0
+  delayHours = 0,
+  options: { note?: string; skipHours?: number[] } = {}
 ) {
   const allowed = await prepareNotifications();
   if (!allowed) return;
@@ -40,6 +42,8 @@ export async function scheduleYeounReminders(
   for (const checkpoint of CHECKPOINTS) {
     // 첫인상을 남기기 전에 이미 지나간 시점은 건너뛴다.
     if (checkpoint.hours <= delayHours) continue;
+    // 이미 기록한 시점은 다시 묻지 않는다.
+    if (options.skipHours?.includes(checkpoint.hours)) continue;
 
     const when = avoidQuietHours(
       new Date(watchedAt + checkpoint.hours * 60 * 60 * 1000)
@@ -49,7 +53,7 @@ export async function scheduleYeounReminders(
     await Notifications.scheduleNotificationAsync({
       content: {
         title: checkpoint.notifyTitle,
-        body: checkpoint.notifyBody(movieTitle),
+        body: checkpoint.notifyBody(movieTitle, options.note),
         data: { type: "yeoun-recheck", hours: checkpoint.hours, recordId },
       },
       trigger: {
@@ -80,5 +84,20 @@ export async function cancelReminders(recordId: string, hours?: number) {
         );
       })
       .map((n) => Notifications.cancelScheduledNotificationAsync(n.identifier))
+  );
+}
+
+/** 관람 시각이나 한 줄이 바뀌었을 때, 남은 알림을 지우고 다시 건다. */
+export async function rescheduleReminders(record: YeounRecord) {
+  await cancelReminders(record.id);
+  await scheduleYeounReminders(
+    record.title,
+    record.watchedAt,
+    record.id,
+    record.firstImpressionDelayHours ?? 0,
+    {
+      note: record.note,
+      skipHours: (record.resonanceHistory ?? []).map((e) => e.hours),
+    }
   );
 }
