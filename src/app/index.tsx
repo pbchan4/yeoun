@@ -17,8 +17,10 @@ import { getHistory, getLatest } from "../lib/resonance";
 import { CHECKPOINTS, formatCheckpoint } from "../lib/checkpoints";
 import { posterUrl } from "../lib/tmdb";
 import { fonts } from "../lib/typography";
+import { useT } from "../lib/i18n";
 
 export default function HomeScreen() {
+  const t = useT();
   const [records, setRecords] = useState<YeounRecord[]>([]);
 
   useFocusEffect(
@@ -76,7 +78,7 @@ export default function HomeScreen() {
                   accessibilityLabel="YEOUN"
                 />
                 <Text style={styles.tagline}>
-                  영화가 끝난 뒤,{"\n"}여운은 시작된다.
+                  {t.home.tagline}
                 </Text>
               </View>
 
@@ -85,9 +87,9 @@ export default function HomeScreen() {
                   <Pressable
                     style={styles.iconButton}
                     accessibilityRole="button"
-                    accessibilityLabel="아카이브 보기"
+                    accessibilityLabel={t.home.archiveA11y}
                   >
-                    <Text style={styles.iconButtonText}>아카이브</Text>
+                    <Text style={styles.iconButtonText}>{t.home.archive}</Text>
                   </Pressable>
                 </Link>
 
@@ -95,9 +97,9 @@ export default function HomeScreen() {
                   <Pressable
                     style={styles.iconButton}
                     accessibilityRole="button"
-                    accessibilityLabel="나의 여운 통계 보기"
+                    accessibilityLabel={t.home.statsA11y}
                   >
-                    <Text style={styles.iconButtonText}>나의 여운</Text>
+                    <Text style={styles.iconButtonText}>{t.home.stats}</Text>
                   </Pressable>
                 </Link>
               </View>
@@ -107,18 +109,16 @@ export default function HomeScreen() {
               <Text style={styles.eyebrow}>AFTER THE FILM</Text>
 
               <Text style={styles.heroTitle}>
-                오늘 본 영화가{"\n"}
-                아직 마음에{"\n"}
-                남아 있나요?
+                {t.home.heroTitle}
               </Text>
 
               <Text style={styles.heroBody}>
-                별점 대신 첫인상을 남기고, 시간이 지난 뒤 진짜 여운을 기록해보세요.
+                {t.home.heroSub}
               </Text>
 
               <Link href="/search" asChild>
                 <Pressable style={styles.primaryButton}>
-                  <Text style={styles.primaryButtonText}>영화 기록하기</Text>
+                  <Text style={styles.primaryButtonText}>{t.home.recordCta}</Text>
                   <Text style={styles.primaryArrow}>→</Text>
                 </Pressable>
               </Link>
@@ -133,7 +133,7 @@ export default function HomeScreen() {
               >
                 <View>
                   <Text style={styles.recapEyebrow}>{thisYear} RECAP</Text>
-                  <Text style={styles.recapTitle}>올해 남은 여운 {thisYearCount}편 돌아보기</Text>
+                  <Text style={styles.recapTitle}>{t.home.recap(thisYearCount)}</Text>
                 </View>
                 <Text style={styles.recapArrow}>→</Text>
               </Pressable>
@@ -142,7 +142,7 @@ export default function HomeScreen() {
             {pending.length > 0 && (
               <View style={styles.pendingBlock}>
                 <Text style={styles.pendingEyebrow}>RECHECK</Text>
-                <Text style={styles.pendingTitle}>지금 물어볼 여운이 있어요</Text>
+                <Text style={styles.pendingTitle}>{t.home.pendingTitle}</Text>
 
                 {pending.slice(0, 3).map((p) => (
                   <Pressable
@@ -159,7 +159,7 @@ export default function HomeScreen() {
                       <Text numberOfLines={1} style={styles.pendingMovie}>
                         {p.record.title}
                       </Text>
-                      <Text style={styles.pendingLabel}>{p.label}의 여운 기록하기</Text>
+                      <Text style={styles.pendingLabel}>{t.home.pendingCta(p.label)}</Text>
                     </View>
                     <Text style={styles.pendingArrow}>→</Text>
                   </Pressable>
@@ -167,7 +167,7 @@ export default function HomeScreen() {
 
                 {pending.length > 3 && (
                   <Text style={styles.pendingMore}>
-                    그 외 {pending.length - 3}편은 최근 기록에서 열어 주세요.
+                    {t.home.pendingMore(pending.length - 3)}
                   </Text>
                 )}
               </View>
@@ -223,7 +223,7 @@ export default function HomeScreen() {
                     </View>
 
                     <Text style={styles.featuredCaption}>
-                      지금 가장 강하게 남아 있는 영화
+                      {t.home.strongest}
                     </Text>
                   </View>
                 </Pressable>
@@ -233,13 +233,13 @@ export default function HomeScreen() {
             <View style={styles.sectionHeader}>
               <View>
                 <Text style={styles.sectionEyebrow}>RECENT</Text>
-                <Text style={styles.sectionTitle}>최근 기록</Text>
+                <Text style={styles.sectionTitle}>{t.home.recent}</Text>
               </View>
 
               {records.length > 0 && (
                 <Link href="/archive" asChild>
                   <Pressable>
-                    <Text style={styles.viewAll}>전체 보기</Text>
+                    <Text style={styles.viewAll}>{t.home.viewAll}</Text>
                   </Pressable>
                 </Link>
               )}
@@ -248,9 +248,9 @@ export default function HomeScreen() {
         }
         ListEmptyComponent={
           <View style={styles.empty}>
-            <Text style={styles.emptyTitle}>아직 기록이 없어요.</Text>
+            <Text style={styles.emptyTitle}>{t.home.emptyTitle}</Text>
             <Text style={styles.emptyBody}>
-              첫 영화를 기록하면 여기에 기억의 흐름이 쌓이기 시작해요.
+              {t.home.emptyBody}
             </Text>
           </View>
         }
@@ -283,7 +283,7 @@ export default function HomeScreen() {
 
                     {(item.rewatchIndex ?? 1) > 1 && (
                       <Text style={styles.rewatchBadge}>
-                        {item.rewatchIndex}회차
+                        {t.common.viewing(item.rewatchIndex ?? 1)}
                       </Text>
                     )}
                   </View>
@@ -292,7 +292,7 @@ export default function HomeScreen() {
                 </View>
 
                 <Text style={styles.recordDate}>
-                  {new Date(item.watchedAt).toLocaleDateString("ko-KR")}
+                  {new Date(item.watchedAt).toLocaleDateString(t.dateLocale)}
                 </Text>
 
                 <View style={styles.recordScoreRow}>
@@ -325,12 +325,12 @@ export default function HomeScreen() {
           <View>
             {records.length > 0 && (
               <Text style={styles.footer}>
-                영화가 남긴 것을 천천히 모아보세요.
+                {t.home.footer}
               </Text>
             )}
             <Link href="/about" asChild>
-              <Pressable accessibilityRole="button" accessibilityLabel="앱 정보 보기">
-                <Text style={styles.aboutLink}>정보 · TMDB</Text>
+              <Pressable accessibilityRole="button" accessibilityLabel={t.home.aboutA11y}>
+                <Text style={styles.aboutLink}>{t.home.aboutLink}</Text>
               </Pressable>
             </Link>
           </View>

@@ -3,6 +3,7 @@ import { File, Paths } from "expo-file-system";
 import * as Sharing from "expo-sharing";
 import { exportData, importData } from "./storage";
 import { rescheduleReminders } from "./notifications";
+import { getT } from "./i18n";
 
 function stamp(date = new Date()) {
   const p = (n: number) => String(n).padStart(2, "0");
@@ -18,12 +19,12 @@ export async function exportBackup() {
   await file.write(JSON.stringify(data, null, 2));
 
   if (!(await Sharing.isAvailableAsync())) {
-    throw new Error("이 기기에서는 파일 공유를 쓸 수 없어요.");
+    throw new Error(getT().errors.fileShareUnavailable);
   }
   await Sharing.shareAsync(file.uri, {
     mimeType: "application/json",
     UTI: "public.json",
-    dialogTitle: "여운 백업 저장",
+    dialogTitle: getT().dialogs.backup,
   });
   return data.records.length;
 }

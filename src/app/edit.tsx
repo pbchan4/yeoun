@@ -13,8 +13,10 @@ import {
 import { getRecord, updateRecord } from "../lib/storage";
 import { rescheduleReminders } from "../lib/notifications";
 import { fonts } from "../lib/typography";
+import { useT } from "../lib/i18n";
 
 export default function EditScreen() {
+  const t = useT();
   const { id } = useLocalSearchParams<{ id?: string }>();
   const [note, setNote] = useState("");
   const [loaded, setLoaded] = useState(false);
@@ -33,7 +35,7 @@ export default function EditScreen() {
           setLoaded(true);
         }
       })
-      .catch(() => Alert.alert("불러오기 실패", "기록을 불러오지 못했어요."));
+      .catch(() => Alert.alert(t.edit.loadFailedTitle, t.edit.loadFailed));
   }, [id]);
 
   // 영화가 끝난 시각은 미래로 옮길 수 없다.
@@ -48,7 +50,7 @@ export default function EditScreen() {
     const iso = watchedAt.toISOString();
     const updated = await updateRecord(id, { note: note.trim(), watchedAt: iso });
     if (!updated) {
-      Alert.alert("저장 실패", "기록을 찾지 못했어요.");
+      Alert.alert(t.common.saveFailed, t.common.recordNotFound);
       return;
     }
     // 관람 시각이나 한 줄(한 달 뒤 편지에 쓰임)이 바뀌었으니 남은 알림을 다시 건다.
@@ -60,9 +62,9 @@ export default function EditScreen() {
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
       <Text style={styles.eyebrow}>EDIT RECORD</Text>
-      <Text style={styles.title}>그날의 기록을{"\n"}수정할 수 있어요.</Text>
+      <Text style={styles.title}>{t.edit.title}</Text>
 
-      <Text style={styles.label}>영화가 끝난 시각</Text>
+      <Text style={styles.label}>{t.edit.finishedAt}</Text>
       {watchedAt && (
         <View style={styles.dateBox}>
           <View style={styles.stepRow}>
@@ -70,7 +72,7 @@ export default function EditScreen() {
               <Text style={styles.stepText}>‹</Text>
             </Pressable>
             <Text style={styles.dateText}>
-              {watchedAt.toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric", weekday: "short" })}
+              {watchedAt.toLocaleDateString(t.dateLocale, { year: "numeric", month: "long", day: "numeric", weekday: "short" })}
             </Text>
             <Pressable style={styles.step} onPress={() => shift(DAY)} hitSlop={8}>
               <Text style={styles.stepText}>›</Text>
@@ -81,26 +83,26 @@ export default function EditScreen() {
               <Text style={styles.stepText}>‹</Text>
             </Pressable>
             <Text style={styles.dateText}>
-              {watchedAt.toLocaleTimeString("ko-KR", { hour: "numeric", minute: "2-digit" })}
+              {watchedAt.toLocaleTimeString(t.dateLocale, { hour: "numeric", minute: "2-digit" })}
             </Text>
             <Pressable style={styles.step} onPress={() => shift(HOUR)} hitSlop={8}>
               <Text style={styles.stepText}>›</Text>
             </Pressable>
           </View>
           {watchedAt.toISOString() !== originalAt && (
-            <Text style={styles.dateHint}>저장하면 아직 오지 않은 여운 알림도 새 시각에 맞춰 다시 맞춰져요.</Text>
+            <Text style={styles.dateHint}>{t.edit.dateHint}</Text>
           )}
         </View>
       )}
 
-      <Text style={styles.label}>그날 남긴 한 줄</Text>
+      <Text style={styles.label}>{t.edit.noteLabel}</Text>
 
       <TextInput
         value={note}
         onChangeText={setNote}
         multiline
         maxLength={140}
-        placeholder="영화가 끝난 직후 떠오른 생각"
+        placeholder={t.edit.notePlaceholder}
         placeholderTextColor="#666"
         style={styles.input}
       />
@@ -108,7 +110,7 @@ export default function EditScreen() {
       <Text style={styles.count}>{note.length}/140</Text>
 
       <Pressable disabled={!loaded} style={styles.save} onPress={save}>
-        <Text style={styles.saveText}>저장하기</Text>
+        <Text style={styles.saveText}>{t.edit.save}</Text>
       </Pressable>
       </ScrollView>
     </SafeAreaView>

@@ -8,6 +8,7 @@ import { CaptureView, shareViewAsImage } from "../lib/share";
 import { getRecords, YeounRecord } from "../lib/storage";
 import { posterUrl } from "../lib/tmdb";
 import { fonts } from "../lib/typography";
+import { useT } from "../lib/i18n";
 
 const TYPE_ORDER: ResonanceType[] = ["deepening", "lasting", "fading"];
 const TYPE_SHADE: Record<ResonanceType, string> = {
@@ -17,6 +18,7 @@ const TYPE_SHADE: Record<ResonanceType, string> = {
 };
 
 export default function RecapScreen() {
+  const t = useT();
   const params = useLocalSearchParams<{ year?: string }>();
   const [records, setRecords] = useState<YeounRecord[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -51,9 +53,9 @@ export default function RecapScreen() {
     if (busy) return;
     setBusy(true);
     try {
-      await shareViewAsImage(cardRef, `${year} 올해의 여운`);
+      await shareViewAsImage(cardRef, t.recap.shareTitle(year));
     } catch (e) {
-      Alert.alert("공유 실패", e instanceof Error ? e.message : "이미지를 만들지 못했어요.");
+      Alert.alert(t.common.shareFailed, e instanceof Error ? e.message : t.common.imageFailed);
     } finally {
       setBusy(false);
     }
@@ -74,33 +76,33 @@ export default function RecapScreen() {
 
         {!recap ? (
           <Text style={styles.empty}>
-            {loaded ? `${year}년에 남긴 기록이 없어요.` : "불러오는 중..."}
+            {loaded ? t.recap.empty(year) : t.common.loading}
           </Text>
         ) : (
           <>
             <View ref={cardRef} collapsable={false} style={styles.card}>
               <Text style={styles.cardEyebrow}>YEOUN · {recap.year}</Text>
-              <Text style={styles.cardTitle}>올해의 여운</Text>
+              <Text style={styles.cardTitle}>{t.recap.title}</Text>
 
               <View style={styles.numbers}>
                 <View>
                   <Text style={styles.bigNum}>{recap.count}</Text>
-                  <Text style={styles.numLabel}>편의 영화</Text>
+                  <Text style={styles.numLabel}>{t.recap.films}</Text>
                 </View>
                 <View>
                   <Text style={styles.bigNum}>{recap.avgFirst}</Text>
-                  <Text style={styles.numLabel}>평균 첫인상</Text>
+                  <Text style={styles.numLabel}>{t.recap.avgFirst}</Text>
                 </View>
                 <View>
-                  <Text style={styles.bigNum}>{recap.busiestMonth}월</Text>
-                  <Text style={styles.numLabel}>가장 많이 본 달</Text>
+                  <Text style={styles.bigNum}>{t.recap.month(recap.busiestMonth)}</Text>
+                  <Text style={styles.numLabel}>{t.recap.busiest}</Text>
                 </View>
               </View>
 
-              <Highlight label="가장 오래 남은 영화" record={recap.longest} value={getLatest(recap.longest).score} />
+              <Highlight label={t.recap.longest} record={recap.longest} value={getLatest(recap.longest).score} />
               {recap.deepest && (
                 <Highlight
-                  label="처음보다 깊어진 영화"
+                  label={t.recap.deepest}
                   record={recap.deepest.record}
                   value={`+${recap.deepest.diff}`}
                 />
@@ -147,14 +149,14 @@ export default function RecapScreen() {
                   );
                 })}
               </View>
-              <Text style={styles.footer}>영화가 끝난 뒤, 여운은 시작된다.</Text>
+              <Text style={styles.footer}>{t.common.slogan}</Text>
             </View>
 
             <Pressable style={[styles.button, busy && styles.disabled]} disabled={busy} onPress={share}>
-              <Text style={styles.buttonText}>{busy ? "이미지 만드는 중..." : "결산 카드 공유하기"}</Text>
+              <Text style={styles.buttonText}>{busy ? t.common.makingImage : t.recap.shareCta}</Text>
             </Pressable>
 
-            <Text style={styles.listTitle}>{year}년의 기록</Text>
+            <Text style={styles.listTitle}>{t.recap.yearRecords(year)}</Text>
             {recap.records.map((r) => (
               <Pressable
                 key={r.id}
@@ -162,7 +164,7 @@ export default function RecapScreen() {
                 onPress={() => router.push({ pathname: "/movie", params: { id: r.id } })}
               >
                 <Text style={styles.rowDate}>
-                  {new Date(r.watchedAt).toLocaleDateString("ko-KR", { month: "numeric", day: "numeric" })}
+                  {new Date(r.watchedAt).toLocaleDateString(t.dateLocale, { month: "numeric", day: "numeric" })}
                 </Text>
                 <Text style={styles.rowTitle} numberOfLines={1}>
                   {r.title}

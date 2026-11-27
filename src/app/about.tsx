@@ -1,10 +1,20 @@
 import { useState } from "react";
 import { Alert, Image, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
 import { exportBackup, importBackup } from "../lib/backup";
+import { rescheduleRecentReminders } from "../lib/notifications";
 import { fonts } from "../lib/typography";
+import { getLanguageSetting, LangSetting, setLanguage, useT } from "../lib/i18n";
+
+const LANG_OPTIONS: { value: LangSetting; label?: string }[] = [
+  { value: "system" },
+  { value: "ko", label: "한국어" },
+  { value: "en", label: "English" },
+];
 
 
 export default function AboutScreen() {
+  const t = useT();
+  const [langSetting, setLangSetting] = useState<LangSetting>(getLanguageSetting());
   const [busy, setBusy] = useState(false);
 
   const runExport = async () => {
@@ -13,7 +23,7 @@ export default function AboutScreen() {
     try {
       await exportBackup();
     } catch (e) {
-      Alert.alert("백업 실패", e instanceof Error ? e.message : "백업 파일을 만들지 못했어요.");
+      Alert.alert(t.about.backupFailed, e instanceof Error ? e.message : t.about.backupFailedDefault);
     } finally {
       setBusy(false);
     }
@@ -26,13 +36,13 @@ export default function AboutScreen() {
       const result = await importBackup();
       if (result) {
         Alert.alert(
-          "가져오기 완료",
-          `새 기록 ${result.added}개, 더 최신으로 바뀐 기록 ${result.updated}개.` +
-            (result.skipped ? `\n읽을 수 없는 항목 ${result.skipped}개는 건너뛰었어요.` : "")
+          t.about.importDone,
+          t.about.importBody(result.added, result.updated) +
+            (result.skipped ? t.about.importSkipped(result.skipped) : "")
         );
       }
     } catch (e) {
-      Alert.alert("가져오기 실패", e instanceof Error ? e.message : "백업 파일을 읽지 못했어요.");
+      Alert.alert(t.about.importFailed, e instanceof Error ? e.message : t.about.importFailedDefault);
     } finally {
       setBusy(false);
     }
@@ -42,34 +52,61 @@ export default function AboutScreen() {
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.eyebrow}>ABOUT</Text>
-        <Text style={styles.title}>여운에 대해</Text>
+        <Text style={styles.title}>{t.about.title}</Text>
 
         <View style={styles.block}>
-          <Text style={styles.label}>데이터</Text>
+          <Text style={styles.label}>{t.about.languageLabel}</Text>
+          <View style={styles.langRow}>
+            {LANG_OPTIONS.map((o) => {
+              const active = langSetting === o.value;
+              return (
+                <Pressable
+                  key={o.value}
+                  style={[styles.langChip, active && styles.langChipActive]}
+                  onPress={() => {
+                    setLangSetting(o.value);
+                    setLanguage(o.value)
+                      .then(rescheduleRecentReminders)
+                      .catch(console.warn);
+                  }}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: active }}
+                >
+                  <Text style={[styles.langText, active && styles.langTextActive]}>
+                    {o.label ?? t.about.languageSystem}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+
+        <View style={styles.block}>
+          <Text style={styles.label}>{t.about.dataLabel}</Text>
           <Text style={styles.body}>
-            내가 남긴 첫인상과 여운 기록은 이 기기에만 저장돼요. 서버로 보내지 않아요.{"\n\n"}앱을 삭제하거나 기기를 바꾸기 전에 백업 파일을 만들어 두세요.
+            {t.about.dataBody}
           </Text>
         </View>
 
         <View style={styles.block}>
-          <Text style={styles.label}>백업</Text>
+          <Text style={styles.label}>{t.about.backupLabel}</Text>
           <Text style={styles.body}>
-            모든 기록을 파일 하나로 내보내 파일 앱, 클라우드 드라이브, 메일 등에 보관할 수 있어요. 가져오면 지금 기록과 합쳐지고, 지워지는 기록은 없어요.
+            {t.about.backupBody}
           </Text>
           <View style={styles.buttons}>
             <Pressable style={[styles.button, busy && styles.disabled]} disabled={busy} onPress={runExport}>
-              <Text style={styles.buttonText}>백업 파일 만들기</Text>
+              <Text style={styles.buttonText}>{t.about.exportCta}</Text>
             </Pressable>
             <Pressable style={[styles.ghost, busy && styles.disabled]} disabled={busy} onPress={runImport}>
-              <Text style={styles.ghostText}>백업에서 가져오기</Text>
+              <Text style={styles.ghostText}>{t.about.importCta}</Text>
             </Pressable>
           </View>
         </View>
 
         <View style={styles.block}>
-          <Text style={styles.label}>영화 정보</Text>
+          <Text style={styles.label}>{t.about.movieInfoLabel}</Text>
           <Text style={styles.body}>
-            영화 제목과 포스터 등 영화 정보는 TMDB에서 가져와요.
+            {t.about.movieInfoBody}
           </Text>
           <Image
             source={require("../../assets/images/tmdb-logo.png")}
@@ -93,7 +130,12 @@ const styles = StyleSheet.create({
   title: { color: "#fff", fontSize: 30, marginTop: 10, marginBottom: 28, fontFamily: fonts.semibold },
   block: { marginBottom: 28, borderTopWidth: 1, borderTopColor: "#242424", paddingTop: 18 },
   label: { color: "#888", fontSize: 12, marginBottom: 8, fontFamily: fonts.medium },
-  body: { color: "#d0d0d0", fontSize: 15, lineHeight: 24, fontFamily: fonts.regular },
+    body: { color: "#d0d0d0", fontSize: 15, lineHeight: 24, fontFamily: fonts.regular },
+  langRow: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
+  langChip: { borderWidth: 1, borderColor: "#333", borderRadius: 99, paddingHorizontal: 16, paddingVertical: 9 },
+  langChipActive: { backgroundColor: "#f2f2f2", borderColor: "#f2f2f2" },
+  langText: { color: "#ccc", fontSize: 14, fontFamily: fonts.medium },
+  langTextActive: { color: "#111" },
   notice: { color: "#777", fontSize: 14, lineHeight: 21, marginTop: 14, fontFamily: fonts.display },
   buttons: { gap: 10, marginTop: 16 },
   button: { backgroundColor: "#f2f2f2", borderRadius: 14, paddingVertical: 15, alignItems: "center" },

@@ -6,6 +6,7 @@ import { classify, getHistory, TYPE_INFO } from "../lib/resonance";
 import { findPreviousViewings, YeounRecord } from "../lib/storage";
 import { posterUrl } from "../lib/tmdb";
 import { fonts } from "../lib/typography";
+import { useT } from "../lib/i18n";
 
 /** 회차마다 막대 밝기를 달리해 겹쳐 보이게 한다. 최근 회차가 가장 밝다. */
 function shade(i: number, total: number) {
@@ -17,6 +18,7 @@ function shade(i: number, total: number) {
 }
 
 export default function CompareScreen() {
+  const t = useT();
   const { tmdbId } = useLocalSearchParams<{ tmdbId?: string }>();
   const [viewings, setViewings] = useState<YeounRecord[]>([]);
 
@@ -44,7 +46,7 @@ export default function CompareScreen() {
   if (!viewings.length) {
     return (
       <SafeAreaView style={styles.center}>
-        <Text style={styles.muted}>불러오는 중...</Text>
+        <Text style={styles.muted}>{t.common.loading}</Text>
       </SafeAreaView>
     );
   }
@@ -60,7 +62,7 @@ export default function CompareScreen() {
           <View style={{ flex: 1 }}>
             <Text style={styles.eyebrow}>REWATCH · {viewings.length}</Text>
             <Text style={styles.title}>{first.title}</Text>
-            <Text style={styles.sub}>같은 영화, 다른 시간의 여운</Text>
+            <Text style={styles.sub}>{t.compare.sub}</Text>
           </View>
         </View>
 
@@ -75,7 +77,7 @@ export default function CompareScreen() {
               >
                 <View style={[styles.swatch, { backgroundColor: shade(i, viewings.length) }]} />
                 <Text style={styles.legendText}>
-                  {v.rewatchIndex ?? i + 1}회차 · {new Date(v.watchedAt).toLocaleDateString("ko-KR")}
+                  {t.common.viewing(v.rewatchIndex ?? i + 1)} · {new Date(v.watchedAt).toLocaleDateString(t.dateLocale)}
                   {type ? ` · ${TYPE_INFO[type].label}` : ""}
                 </Text>
               </Pressable>
@@ -103,11 +105,11 @@ export default function CompareScreen() {
 
         {viewings.some((v) => v.note) && (
           <>
-            <Text style={styles.sectionTitle}>회차별 한 줄</Text>
+            <Text style={styles.sectionTitle}>{t.compare.notes}</Text>
             {viewings.map((v, i) =>
               v.note ? (
                 <View key={v.id} style={styles.noteBox}>
-                  <Text style={styles.noteLabel}>{v.rewatchIndex ?? i + 1}회차</Text>
+                  <Text style={styles.noteLabel}>{t.common.viewing(v.rewatchIndex ?? i + 1)}</Text>
                   <Text style={styles.noteText}>{v.note}</Text>
                 </View>
               ) : null

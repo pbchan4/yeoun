@@ -1,5 +1,6 @@
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { fonts } from "../lib/typography";
+import { useT } from "../lib/i18n";
 
 export type BandItem = {
   id: string;
@@ -11,6 +12,7 @@ export type BandItem = {
 
 /** 관람한 영화를 시간순으로 이어 붙인 색 띠. 한 칸이 영화 한 편이다. */
 export function ColorBand({ items }: { items: BandItem[] }) {
+  const t = useT();
   if (!items.length) return null;
 
   return (
@@ -22,7 +24,7 @@ export function ColorBand({ items }: { items: BandItem[] }) {
             <View
               key={item.id}
               style={styles.cell}
-              accessibilityLabel={`${item.label}, 여운 ${item.score}`}
+              accessibilityLabel={t.band.a11y(item.label, item.score)}
             >
               <View
                 style={[
@@ -38,7 +40,7 @@ export function ColorBand({ items }: { items: BandItem[] }) {
           );
         })}
       </ScrollView>
-      <Text style={styles.caption}>한 칸이 영화 한 편이에요. 높고 진할수록 지금도 선명하게 남아 있어요.</Text>
+      <Text style={styles.caption}>{t.band.caption}</Text>
     </View>
   );
 }

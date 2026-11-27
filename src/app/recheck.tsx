@@ -16,16 +16,17 @@ import { addResonanceEntry, getRecord, YeounRecord } from "../lib/storage";
 import { cancelReminders } from "../lib/notifications";
 import { CHECKPOINTS, formatCheckpoint } from "../lib/checkpoints";
 import { fonts } from "../lib/typography";
+import { getT, useT } from "../lib/i18n";
 
-const LEVELS = [
-  { label: "거의 사라졌어요", value: 20 },
-  { label: "희미하게 남아 있어요", value: 40 },
-  { label: "문득 떠올라요", value: 60 },
-  { label: "자주 생각나요", value: 80 },
-  { label: "아직도 아주 선명해요", value: 100 },
-];
+const LEVELS = [20, 40, 60, 80, 100].map((value, i) => ({
+  value,
+  get label() {
+    return getT().recheck.levels[i];
+  },
+}));
 
 export default function RecheckScreen() {
+  const t = useT();
   const { id, hours } = useLocalSearchParams<{ id?: string; hours?: string }>();
   const [score, setScore] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
@@ -52,7 +53,7 @@ export default function RecheckScreen() {
       });
 
       if (!updated) {
-        Alert.alert("저장 실패", "기록을 찾지 못했어요.");
+        Alert.alert(t.common.saveFailed, t.common.recordNotFound);
         setSaving(false);
         return;
       }
@@ -61,11 +62,11 @@ export default function RecheckScreen() {
       cancelReminders(id, targetHours).catch(console.warn);
 
       Alert.alert(
-        `${target.label} 여운 기록 완료`,
-        `지금의 여운은 ${score}입니다.`,
+        t.recheck.savedTitle(target.label),
+        t.recheck.savedBody(score),
         [
           {
-            text: "변화 보기",
+            text: t.recheck.seeChange,
             onPress: () =>
               router.replace({ pathname: "/movie", params: { id } }),
           },
@@ -73,7 +74,7 @@ export default function RecheckScreen() {
         { cancelable: false }
       );
     } catch {
-      Alert.alert("저장 실패", "여운을 저장하지 못했어요. 다시 시도해 주세요.");
+      Alert.alert(t.common.saveFailed, t.recheck.saveError);
       setSaving(false);
     }
   };
@@ -91,18 +92,18 @@ export default function RecheckScreen() {
             <Text style={styles.day}>{formatCheckpoint(targetHours)}</Text>
             {!!record && <Text style={styles.movie}>{record.title}</Text>}
             <Text style={styles.title}>
-              {letter ? "한 달 전의 당신이\n남긴 한 줄이에요." : "아직 이 영화가\n당신 안에 남아 있나요?"}
+              {letter ? t.recheck.titleLetter : t.recheck.title}
             </Text>
             {letter ? (
               <View style={styles.letter}>
                 <Text style={styles.letterText}>“{record!.note}”</Text>
                 <Text style={styles.letterDate}>
-                  {new Date(record!.watchedAt).toLocaleDateString("ko-KR")}
+                  {new Date(record!.watchedAt).toLocaleDateString(t.dateLocale)}
                 </Text>
               </View>
             ) : (
               <Text style={styles.sub}>
-                좋았는지 다시 평가하지 않아도 돼요. 지금 떠오르는 정도만 기록하세요.
+                {t.recheck.sub}
               </Text>
             )}
           </View>
@@ -127,7 +128,7 @@ export default function RecheckScreen() {
           <TextInput
             value={note}
             onChangeText={setNote}
-            placeholder={letter ? "지금의 나는 이렇게 답해요." : "지금 떠오르는 장면이나 대사가 있나요? (선택)"}
+            placeholder={letter ? t.recheck.notePlaceholderLetter : t.recheck.notePlaceholder}
             placeholderTextColor="#666"
             multiline
             maxLength={140}
@@ -139,7 +140,7 @@ export default function RecheckScreen() {
             onPress={save}
             style={[styles.save, (score == null || saving) && styles.disabled]}
           >
-            <Text style={styles.saveText}>지금의 여운 남기기</Text>
+            <Text style={styles.saveText}>{t.recheck.saveCta}</Text>
           </Pressable>
         </ScrollView>
       </KeyboardAvoidingView>

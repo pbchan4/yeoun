@@ -1,3 +1,4 @@
+import { getT } from "./i18n";
 import type { ResonanceEntry, YeounRecord } from "./storage";
 
 /** 이 점수 이상이면 "선명하게 남은 여운"으로 본다. */
@@ -23,23 +24,36 @@ export function getLatest(record: YeounRecord): ResonanceEntry {
 
 /** 첫인상과 지금의 차이를 한 문장으로. */
 export function describeChange(history: { score: number }[]) {
-  if (history.length <= 1) return "첫인상이 기록됐어요. 진짜 여운은 시간이 지나면서 시작됩니다.";
+  const t = getT().change;
+  if (history.length <= 1) return t.first;
   const diff = history[history.length - 1].score - history[0].score;
-  if (diff >= 15) return "처음보다 더 깊게 남은 영화예요.";
-  if (diff >= 5) return "시간이 지나며 조금 더 선명해지고 있어요.";
-  if (diff <= -15) return "강했던 첫인상이 빠르게 옅어지고 있어요.";
-  if (diff <= -5) return "처음보다는 조금 흐려졌어요.";
-  return "처음의 감정이 비슷한 온도로 남아 있어요.";
+  if (diff >= 15) return t.deeper;
+  if (diff >= 5) return t.clearer;
+  if (diff <= -15) return t.fadingFast;
+  if (diff <= -5) return t.faded;
+  return t.same;
 }
 
 // ─── 여운 유형 ────────────────────────────────────────────
 
 export type ResonanceType = "deepening" | "lasting" | "fading";
 
+function typeInfo(type: ResonanceType, en: string) {
+  return {
+    en,
+    get label() {
+      return getT().types[type].label;
+    },
+    get body() {
+      return getT().types[type].body;
+    },
+  };
+}
+
 export const TYPE_INFO: Record<ResonanceType, { label: string; en: string; body: string }> = {
-  deepening: { label: "잔향형", en: "DEEPENING", body: "시간이 지날수록 더 깊어지는 영화" },
-  lasting: { label: "지속형", en: "LASTING", body: "처음의 온도가 그대로 남는 영화" },
-  fading: { label: "증발형", en: "FADING", body: "강렬했지만 빠르게 옅어지는 영화" },
+  deepening: typeInfo("deepening", "DEEPENING"),
+  lasting: typeInfo("lasting", "LASTING"),
+  fading: typeInfo("fading", "FADING"),
 };
 
 /** 하루 이상 지난 뒤의 기록이 있어야 유형을 정한다. 없으면 null. */

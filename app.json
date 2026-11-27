@@ -2,7 +2,7 @@
   "expo": {
     "name": "yeoun",
     "slug": "yeoun",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "yeoun",
@@ -13,7 +13,8 @@
       "supportsTablet": false,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "NSPhotoLibraryAddUsageDescription": "여운 카드와 결산 카드를 사진 앱에 저장하려면 사진 추가 권한이 필요해요."
+        "NSPhotoLibraryAddUsageDescription": "여운 카드와 결산 카드를 사진 앱에 저장하려면 사진 추가 권한이 필요해요.",
+        "CFBundleAllowMixedLocalizations": true
       }
     },
     "android": {
@@ -55,6 +56,10 @@
       "eas": {
         "projectId": "170c838d-5781-4371-a15f-854a97f1278f"
       }
+    },
+    "locales": {
+      "ko": "./assets/locales/ko.json",
+      "en": "./assets/locales/en.json"
     }
   }
 }

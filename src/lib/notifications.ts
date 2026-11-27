@@ -1,12 +1,13 @@
 import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
 import { CHECKPOINTS } from "./checkpoints";
-import type { YeounRecord } from "./storage";
+import { getT } from "./i18n";
+import { getRecords, type YeounRecord } from "./storage";
 
 export async function prepareNotifications() {
   if (Platform.OS === "android") {
     await Notifications.setNotificationChannelAsync("yeoun-reminders", {
-      name: "여운 리마인더",
+      name: getT().notificationChannel,
       importance: Notifications.AndroidImportance.DEFAULT,
     });
   }
@@ -100,4 +101,15 @@ export async function rescheduleReminders(record: YeounRecord) {
       skipHours: (record.resonanceHistory ?? []).map((e) => e.hours),
     }
   );
+}
+
+/** 언어를 바꾸면, 아직 오지 않은 알림을 새 언어로 다시 건다. (한 달 안에 본 영화만) */
+export async function rescheduleRecentReminders() {
+  const monthAgo = Date.now() - 720 * 60 * 60 * 1000;
+  const records = await getRecords();
+  for (const r of records) {
+    if (new Date(r.watchedAt).getTime() > monthAgo) {
+      await rescheduleReminders(r).catch(console.warn);
+    }
+  }
 }

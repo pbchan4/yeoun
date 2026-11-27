@@ -7,8 +7,10 @@ import { CaptureView, shareViewAsImage } from "../lib/share";
 import { getRecord, YeounRecord } from "../lib/storage";
 import { posterUrl } from "../lib/tmdb";
 import { fonts } from "../lib/typography";
+import { useT } from "../lib/i18n";
 
 export default function ShareScreen() {
+  const t = useT();
   const { id } = useLocalSearchParams<{ id?: string }>();
   const [record, setRecord] = useState<YeounRecord | null>(null);
   const [posterReady, setPosterReady] = useState(false);
@@ -23,7 +25,7 @@ export default function ShareScreen() {
   if (!record) {
     return (
       <SafeAreaView style={styles.center}>
-        <Text style={styles.muted}>카드를 준비하는 중...</Text>
+        <Text style={styles.muted}>{t.share.preparing}</Text>
       </SafeAreaView>
     );
   }
@@ -37,9 +39,9 @@ export default function ShareScreen() {
     if (busy) return;
     setBusy(true);
     try {
-      await shareViewAsImage(cardRef, `${record.title}의 여운`);
+      await shareViewAsImage(cardRef, t.share.dialog(record.title));
     } catch (e) {
-      Alert.alert("공유 실패", e instanceof Error ? e.message : "이미지를 만들지 못했어요.");
+      Alert.alert(t.common.shareFailed, e instanceof Error ? e.message : t.common.imageFailed);
     } finally {
       setBusy(false);
     }
@@ -66,9 +68,9 @@ export default function ShareScreen() {
           disabled={!ready || busy}
           onPress={share}
         >
-          <Text style={styles.buttonText}>{busy ? "이미지 만드는 중..." : "이미지로 공유하기"}</Text>
+          <Text style={styles.buttonText}>{busy ? t.common.makingImage : t.share.cta}</Text>
         </Pressable>
-        <Text style={styles.hint}>인스타그램 스토리, 메시지, 사진 앱에 저장할 수 있어요.</Text>
+        <Text style={styles.hint}>{t.share.hint}</Text>
       </ScrollView>
     </SafeAreaView>
   );

@@ -2,11 +2,12 @@ import { Stack, router } from "expo-router";
 import * as Notifications from "expo-notifications";
 import { useFonts } from "expo-font";
 import * as SplashScreen from "expo-splash-screen";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { InstrumentSerif_400Regular } from "@expo-google-fonts/instrument-serif";
 import Storage from "expo-sqlite/kv-store";
 import { getRecords } from "../lib/storage";
 import { rescheduleReminders } from "../lib/notifications";
+import { initLanguage, useLanguage, useT } from "../lib/i18n";
 
 const LETTER_MIGRATION_KEY = "yeoun.migration.letter720.v1";
 
@@ -45,11 +46,19 @@ export default function RootLayout() {
     PretendardSemiBold: require("../../assets/fonts/Pretendard-SemiBold.otf"),
   });
 
+  const [langReady, setLangReady] = useState(false);
+  const lang = useLanguage();
+  const t = useT();
+
   useEffect(() => {
-    if (loaded || error) {
+    initLanguage().finally(() => setLangReady(true));
+  }, []);
+
+  useEffect(() => {
+    if ((loaded || error) && langReady) {
       SplashScreen.hideAsync();
     }
-  }, [loaded, error]);
+  }, [loaded, error, langReady]);
 
   // 알림을 누르면 해당 영화의 상세 화면으로 이동한다. (앱이 꺼져 있다가 열린 경우 포함)
   useEffect(() => {
@@ -73,12 +82,14 @@ export default function RootLayout() {
     return () => subscription.remove();
   }, [loaded, error]);
 
-  if (!loaded && !error) {
+  if ((!loaded && !error) || !langReady) {
     return null;
   }
 
   return (
+    // 언어를 바꾸면 화면 전체를 새 언어로 다시 그린다. (홈으로 돌아간다)
     <Stack
+      key={lang}
       screenOptions={{
         headerStyle: { backgroundColor: "#0B0B0B" },
         headerTintColor: "#FFFFFF",
@@ -95,20 +106,20 @@ export default function RootLayout() {
         name="index"
         options={{
           headerShown: false,
-          title: "여운",
+          title: t.titles.home,
         }}
       />
-      <Stack.Screen name="search" options={{ title: "영화 찾기" }} />
-      <Stack.Screen name="record" options={{ title: "첫인상 기록" }} />
-      <Stack.Screen name="movie" options={{ title: "여운" }} />
-      <Stack.Screen name="recheck" options={{ title: "다시 남은 여운" }} />
-      <Stack.Screen name="stats" options={{ title: "나의 여운" }} />
-      <Stack.Screen name="archive" options={{ title: "아카이브" }} />
-      <Stack.Screen name="edit" options={{ title: "기록 수정" }} />
-      <Stack.Screen name="about" options={{ title: "정보" }} />
-      <Stack.Screen name="share" options={{ title: "여운 카드" }} />
-      <Stack.Screen name="recap" options={{ title: "올해의 여운" }} />
-      <Stack.Screen name="compare" options={{ title: "회차 비교" }} />
+      <Stack.Screen name="search" options={{ title: t.titles.search }} />
+      <Stack.Screen name="record" options={{ title: t.titles.record }} />
+      <Stack.Screen name="movie" options={{ title: t.titles.movie }} />
+      <Stack.Screen name="recheck" options={{ title: t.titles.recheck }} />
+      <Stack.Screen name="stats" options={{ title: t.titles.stats }} />
+      <Stack.Screen name="archive" options={{ title: t.titles.archive }} />
+      <Stack.Screen name="edit" options={{ title: t.titles.edit }} />
+      <Stack.Screen name="about" options={{ title: t.titles.about }} />
+      <Stack.Screen name="share" options={{ title: t.titles.share }} />
+      <Stack.Screen name="recap" options={{ title: t.titles.recap }} />
+      <Stack.Screen name="compare" options={{ title: t.titles.compare }} />
     </Stack>
   );
 }

@@ -2,6 +2,7 @@ import { Image, ScrollView, StyleSheet, Text, View } from "react-native";
 import { CHECKPOINTS, formatCheckpoint } from "../lib/checkpoints";
 import type { ResonanceEntry } from "../lib/storage";
 import { fonts } from "../lib/typography";
+import { useT } from "../lib/i18n";
 
 type Props = {
   history: ResonanceEntry[];
@@ -20,6 +21,7 @@ type Frame =
  * 아직 기록하지 않은 시점은 빈 프레임으로 남긴다.
  */
 export function ResonanceStrip({ history, posterUri, delayHours = 0 }: Props) {
+  const t = useT();
   const done = new Set(history.map((e) => e.hours));
 
   const frames: Frame[] = [
@@ -49,7 +51,7 @@ export function ResonanceStrip({ history, posterUri, delayHours = 0 }: Props) {
             <View
               key={frame.hours}
               style={styles.item}
-              accessibilityLabel={`${frame.ko} 여운 아직 기록하지 않음`}
+              accessibilityLabel={t.strip.pending(frame.ko)}
             >
               <View style={[styles.frame, styles.pendingFrame]} />
               <Text style={styles.label} numberOfLines={1} adjustsFontSizeToFit>
@@ -68,7 +70,7 @@ export function ResonanceStrip({ history, posterUri, delayHours = 0 }: Props) {
           <View
             key={frame.hours}
             style={styles.item}
-            accessibilityLabel={`${frame.label} 여운 ${frame.score}`}
+            accessibilityLabel={t.strip.score(frame.label, frame.score)}
           >
             <View style={styles.frame}>
               {posterUri ? (

@@ -22,6 +22,7 @@ import {
 import { QUESTIONS } from "../lib/questions";
 import { genreName } from "../lib/genres";
 import { fonts } from "../lib/typography";
+import { getT, useT } from "../lib/i18n";
 
 const TYPE_ORDER: ResonanceType[] = ["deepening", "lasting", "fading"];
 
@@ -32,19 +33,20 @@ function questionShort(key: string) {
 /** 상관계수를 말로. */
 function insightSentence(best: { key: string; r: number }, worst: { key: string; r: number } | undefined) {
   if (best.r < 0.2) {
-    return "아직 첫인상의 어떤 항목도 오래 남을지를 잘 예측하지 못해요. 여운은 보는 순간과 꽤 다른 곳에서 오는 것 같아요.";
+    return getT().stats.insightNone;
   }
-  const head = `당신에게 오래 남는 영화는 '${questionShort(best.key)}'이 컸던 영화예요.`;
+  const head = getT().stats.insightHead(questionShort(best.key));
   if (worst && worst.key !== best.key && worst.r <= -0.2) {
-    return `${head} 오히려 '${questionShort(worst.key)}'이 컸던 영화는 빨리 옅어지는 편이었어요.`;
+    return getT().stats.insightNegative(head, questionShort(worst.key));
   }
   if (worst && worst.key !== best.key && worst.r < 0.1) {
-    return `${head} 반면 '${questionShort(worst.key)}'은 3일 뒤의 여운과 거의 상관이 없었어요.`;
+    return getT().stats.insightUnrelated(head, questionShort(worst.key));
   }
   return head;
 }
 
 export default function StatsScreen() {
+  const t = useT();
   const [records, setRecords] = useState<YeounRecord[]>([]);
 
   useFocusEffect(
@@ -100,9 +102,9 @@ export default function StatsScreen() {
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.eyebrow}>YOUR CINEMA MEMORY</Text>
-        <Text style={styles.title}>나의 여운</Text>
+        <Text style={styles.title}>{t.stats.title}</Text>
         <Text style={styles.sub}>
-          영화가 좋았던 순간보다, 시간이 지나도 남은 것을 모아봅니다.
+          {t.stats.sub}
         </Text>
 
         <Pressable
@@ -111,7 +113,7 @@ export default function StatsScreen() {
         >
           <View>
             <Text style={styles.recapEyebrow}>{year} RECAP</Text>
-            <Text style={styles.recapTitle}>올해의 여운 보기</Text>
+            <Text style={styles.recapTitle}>{t.stats.recapCta}</Text>
           </View>
           <Text style={styles.recapArrow}>→</Text>
         </Pressable>
@@ -119,47 +121,49 @@ export default function StatsScreen() {
         <View style={styles.grid}>
           <View style={styles.statCard}>
             <Text style={styles.statValue}>{stats.count}</Text>
-            <Text style={styles.statLabel}>관람 기록</Text>
+            <Text style={styles.statLabel}>{t.stats.records}</Text>
           </View>
 
           <View style={styles.statCard}>
             <Text style={styles.statValue}>{stats.avgFirst || "—"}</Text>
-            <Text style={styles.statLabel}>평균 첫인상</Text>
+            <Text style={styles.statLabel}>{t.stats.avgFirst}</Text>
           </View>
 
           <View style={styles.statCard}>
             <Text style={styles.statValue}>{stats.longCount}</Text>
-            <Text style={styles.statLabel}>3일 뒤에도 선명</Text>
+            <Text style={styles.statLabel}>{t.stats.lasting}</Text>
           </View>
 
           <View style={styles.statCard}>
             <Text style={styles.statValue}>{stats.rewatches}</Text>
-            <Text style={styles.statLabel}>재관람 기록</Text>
+            <Text style={styles.statLabel}>{t.stats.rewatches}</Text>
           </View>
         </View>
 
         <View style={styles.highlight}>
-          <Text style={styles.highlightLabel}>지금 가장 강하게 남은 영화</Text>
+          <Text style={styles.highlightLabel}>{t.stats.strongest}</Text>
           <Text style={styles.highlightTitle}>
-            {stats.strongest?.title ?? "아직 데이터가 없어요"}
+            {stats.strongest?.title ?? t.stats.noData}
           </Text>
         </View>
 
         {/* 여운 유형 */}
-        <Text style={styles.sectionTitle}>여운의 유형</Text>
+        <Text style={styles.sectionTitle}>{t.stats.types}</Text>
         {types.classified === 0 ? (
-          <Text style={styles.muted}>하루 뒤의 여운까지 기록한 영화가 생기면 유형이 보여요.</Text>
+          <Text style={styles.muted}>{t.stats.typesEmpty}</Text>
         ) : (
           <View style={styles.typeList}>
-            {TYPE_ORDER.map((t) => {
-              const n = types.counts[t];
+            {TYPE_ORDER.map((type) => {
+              const n = types.counts[type];
               const pct = Math.round((n / types.classified) * 100);
               return (
-                <View key={t} style={styles.typeRow}>
+                <View key={type} style={styles.typeRow}>
                   <View style={styles.typeHead}>
                     <Text style={styles.typeLabel}>
-                      {TYPE_INFO[t].label}
-                      <Text style={styles.typeEn}>  {TYPE_INFO[t].en}</Text>
+                      {TYPE_INFO[type].label}
+                      {TYPE_INFO[type].label.toUpperCase() !== TYPE_INFO[type].en && (
+                        <Text style={styles.typeEn}>  {TYPE_INFO[type].en}</Text>
+                      )}
                     </Text>
                     <Text style={styles.typePct}>{pct}%</Text>
                   </View>
@@ -167,7 +171,7 @@ export default function StatsScreen() {
                     <View style={[styles.barFill, { width: `${pct}%` }]} />
                   </View>
                   <Text style={styles.typeBody}>
-                    {TYPE_INFO[t].body} · {n}편
+                    {t.stats.typeCount(TYPE_INFO[type].body, n)}
                   </Text>
                 </View>
               );
@@ -176,11 +180,11 @@ export default function StatsScreen() {
         )}
 
         {/* 첫인상 → 여운 인사이트 */}
-        <Text style={styles.sectionTitle}>무엇이 오래 남게 할까</Text>
+        <Text style={styles.sectionTitle}>{t.stats.insightTitle}</Text>
         {!insight.ready ? (
           <View style={styles.lockBox}>
             <Text style={styles.muted}>
-              3일 뒤 여운까지 기록한 영화가 {insight.need}편이 되면, 첫인상의 어떤 항목이 당신의 여운을 예측하는지 알려드려요.
+              {t.stats.insightLocked(insight.need)}
             </Text>
             <View style={[styles.barTrack, { marginTop: 14 }]}>
               <View style={[styles.barFill, { width: `${(insight.have / insight.need) * 100}%` }]} />
@@ -190,7 +194,7 @@ export default function StatsScreen() {
             </Text>
           </View>
         ) : insight.results.length === 0 ? (
-          <Text style={styles.muted}>답이 모두 비슷해서 아직 차이를 찾지 못했어요.</Text>
+          <Text style={styles.muted}>{t.stats.insightFlat}</Text>
         ) : (
           <View style={styles.lockBox}>
             <Text style={styles.insight}>
@@ -207,26 +211,26 @@ export default function StatsScreen() {
                 </View>
               ))}
             </View>
-            <Text style={styles.corrHint}>1에 가까울수록 그 항목이 컸던 영화가 3일 뒤에도 남았다는 뜻이에요.</Text>
+            <Text style={styles.corrHint}>{t.stats.corrHint}</Text>
           </View>
         )}
 
         {/* 장르 */}
-        <Text style={styles.sectionTitle}>장르별 여운</Text>
+        <Text style={styles.sectionTitle}>{t.stats.genres}</Text>
         {genres.length === 0 ? (
-          <Text style={styles.muted}>같은 장르를 두 편 이상 기록하면 보여요. (이번 업데이트 이후 기록부터 장르가 저장돼요.)</Text>
+          <Text style={styles.muted}>{t.stats.genresEmpty}</Text>
         ) : (
           <View style={{ gap: 12 }}>
             {genres.slice(0, 6).map((g) => (
               <View key={g.id} style={styles.corrRow}>
-                <Text style={styles.corrLabel}>{genreName(g.id) ?? "기타"}</Text>
+                <Text style={styles.corrLabel}>{genreName(g.id) ?? t.stats.genreOther}</Text>
                 <View style={[styles.barTrack, { flex: 1 }]}>
                   <View style={[styles.barFill, { width: `${g.avg}%` }]} />
                 </View>
                 <Text style={styles.corrValue}>{g.avg}</Text>
               </View>
             ))}
-            <Text style={styles.corrHint}>지금 남아 있는 여운의 평균이에요.</Text>
+            <Text style={styles.corrHint}>{t.stats.genreHint}</Text>
           </View>
         )}
       </ScrollView>

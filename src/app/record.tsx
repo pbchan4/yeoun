@@ -15,26 +15,27 @@ import { posterUrl } from "../lib/tmdb";
 import { scheduleYeounReminders } from "../lib/notifications";
 import { CHECKPOINTS } from "../lib/checkpoints";
 import { fonts } from "../lib/typography";
+import { getT, useT } from "../lib/i18n";
 import { QUESTIONS } from "../lib/questions";
 import { parseGenreIds } from "../lib/genres";
 
-const LEVELS = [
-  { label: "거의 없음", value: 20 },
-  { label: "조금", value: 40 },
-  { label: "보통", value: 60 },
-  { label: "많이", value: 80 },
-  { label: "아주 강하게", value: 100 },
-];
+const LEVELS = [20, 40, 60, 80, 100].map((value, i) => ({
+  value,
+  get label() {
+    return getT().record.levels[i];
+  },
+}));
 
 // 영화가 끝난 지 얼마나 됐는지. 이미 지나간 재확인 시점은 건너뛴다.
-const DELAY_OPTIONS = [
-  { label: "방금", hours: 0 },
-  { label: "1시간쯤", hours: 1 },
-  { label: "반나절쯤", hours: 6 },
-  { label: "하루 이상", hours: 24 },
-];
+const DELAY_OPTIONS = [0, 1, 6, 24].map((hours, i) => ({
+  hours,
+  get label() {
+    return getT().record.delays[i];
+  },
+}));
 
 export default function RecordScreen() {
+  const t = useT();
   const params = useLocalSearchParams<{
     tmdbId?: string;
     title?: string;
@@ -62,7 +63,7 @@ export default function RecordScreen() {
   const complete = Object.keys(answers).length === QUESTIONS.length;
   const image = posterUrl(params.posterPath);
   const rewatchIndex = Number(params.rewatchIndex ?? "1");
-  const nextLabel = CHECKPOINTS.find((c) => c.hours > delayHours)?.label ?? "나중에";
+  const nextLabel = CHECKPOINTS.find((c) => c.hours > delayHours)?.label ?? t.later;
 
   const select = (value: number) => {
     setAnswers((prev) => ({ ...prev, [question.key]: value }));
@@ -87,7 +88,7 @@ export default function RecordScreen() {
       await addRecord({
           id,
         tmdbId: Number(params.tmdbId),
-        title: params.title ?? "제목 없음",
+        title: params.title ?? t.record.untitled,
         originalTitle: params.originalTitle ?? "",
         posterPath: params.posterPath || null,
         releaseDate: params.releaseDate ?? "",
@@ -103,18 +104,18 @@ export default function RecordScreen() {
 
       setSaved(true);
 
-      scheduleYeounReminders(params.title ?? "이 영화", finishedAt, id, delayHours, {
+      scheduleYeounReminders(params.title ?? t.record.thisFilm, finishedAt, id, delayHours, {
         note: note.trim() || undefined,
       }).catch(console.warn);
 
       Alert.alert(
-        rewatchIndex > 1 ? "재관람 기록 완료" : "첫인상이 기록됐어요",
-        `첫인상 지수는 ${score}입니다.\n${nextLabel}, 진짜 여운을 다시 물어볼게요.`,
-        [{ text: "홈으로", onPress: () => router.replace("/") }],
+        rewatchIndex > 1 ? t.record.savedRewatch : t.record.saved,
+        t.record.savedBody(score, nextLabel),
+        [{ text: t.record.home, onPress: () => router.replace("/") }],
         { cancelable: false }
       );
     } catch {
-      Alert.alert("저장 실패", "기록을 저장하지 못했어요.");
+      Alert.alert(t.common.saveFailed, t.record.saveError);
     } finally {
       setSaving(false);
     }
@@ -131,7 +132,7 @@ export default function RecordScreen() {
           <Text style={styles.resultTitle}>{params.title}</Text>
           <Text style={styles.resultScore}>{score}</Text>
 
-          <Text style={extra.delayLabel}>영화가 끝난 지 얼마나 됐나요?</Text>
+          <Text style={extra.delayLabel}>{t.record.delayQuestion}</Text>
           <View style={extra.chips}>
             {DELAY_OPTIONS.map((o) => {
               const active = delayHours === o.hours;
@@ -154,7 +155,7 @@ export default function RecordScreen() {
           <TextInput
             value={note}
             onChangeText={setNote}
-            placeholder="지금 떠오르는 한 줄을 남겨도 좋아요."
+            placeholder={t.record.notePlaceholder}
             placeholderTextColor="#666"
             multiline
             maxLength={140}
@@ -162,16 +163,16 @@ export default function RecordScreen() {
           />
 
           <Text style={styles.resultCopy}>
-            이건 아직 여운이 아니에요.{"\n"}{nextLabel}, 이 영화가 얼마나 남았는지 다시 볼게요.
+            {t.record.notYet(nextLabel)}
           </Text>
 
           <Pressable style={styles.saveButton} onPress={save} disabled={saving || saved}>
-            <Text style={styles.saveButtonText}>{saving ? "저장 중..." : "첫인상 남기기"}</Text>
+            <Text style={styles.saveButtonText}>{saving ? t.record.saving : t.record.saveCta}</Text>
           </Pressable>
 
           {!saved && (
             <Pressable onPress={restart}>
-              <Text style={styles.back}>답변 다시 고르기</Text>
+              <Text style={styles.back}>{t.record.reselect}</Text>
             </Pressable>
           )}
         </View>
@@ -207,7 +208,7 @@ export default function RecordScreen() {
 
         {step > 0 && (
           <Pressable onPress={() => setStep(step - 1)}>
-            <Text style={styles.back}>이전 질문</Text>
+            <Text style={styles.back}>{t.record.prevQuestion}</Text>
           </Pressable>
         )}
       </View>

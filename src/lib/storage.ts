@@ -1,3 +1,4 @@
+import { getT } from "./i18n";
 import Storage from "expo-sqlite/kv-store";
 
 export type ResonanceEntry = {
@@ -158,7 +159,7 @@ export async function importData(text: string) {
   try {
     parsed = JSON.parse(text);
   } catch {
-    throw new Error("백업 파일을 읽을 수 없어요.");
+    throw new Error(getT().errors.backupUnreadable);
   }
 
   const list = Array.isArray(parsed)
@@ -166,7 +167,7 @@ export async function importData(text: string) {
     : (parsed as Partial<BackupFile>)?.app === "yeoun"
       ? (parsed as BackupFile).records
       : null;
-  if (!Array.isArray(list)) throw new Error("여운 백업 파일이 아니에요.");
+  if (!Array.isArray(list)) throw new Error(getT().errors.notBackup);
 
   const incoming = list.filter(isRecord).map(normalize);
   const current = await getRecords();

@@ -15,8 +15,10 @@ import {
 import { posterUrl, searchMovies, TmdbMovie } from "../lib/tmdb";
 import { findPreviousViewings } from "../lib/storage";
 import { fonts } from "../lib/typography";
+import { useT } from "../lib/i18n";
 
 export default function SearchScreen() {
+  const t = useT();
   const [query, setQuery] = useState("");
   const [movies, setMovies] = useState<TmdbMovie[]>([]);
   const [loading, setLoading] = useState(false);
@@ -38,7 +40,7 @@ export default function SearchScreen() {
       setSearched(true);
     } catch (e) {
       if (current !== requestId.current) return;
-      setError(e instanceof Error ? e.message : "검색에 실패했어요.");
+      setError(e instanceof Error ? e.message : t.errors.searchFailed());
     } finally {
       if (current === requestId.current) setLoading(false);
     }
@@ -67,11 +69,11 @@ export default function SearchScreen() {
     }
 
     Alert.alert(
-      "이 영화를 전에 기록했어요",
-      `${item.title}을(를) ${previous.length}번 기록했어요.\n이번 관람을 새 기록으로 남길까요?`,
+      t.search.previousTitle,
+      t.search.previousBody(item.title, previous.length),
       [
-        { text: "취소", style: "cancel" },
-        { text: "재관람으로 기록", onPress: () => go(previous.length + 1) },
+        { text: t.common.cancel, style: "cancel" },
+        { text: t.search.rewatchCta, onPress: () => go(previous.length + 1) },
       ]
     );
   };
@@ -84,14 +86,14 @@ export default function SearchScreen() {
           value={query}
           onChangeText={setQuery}
           onSubmitEditing={runSearch}
-          placeholder="영화 제목을 검색하세요"
+          placeholder={t.search.placeholder}
           placeholderTextColor="#666"
           style={styles.input}
           returnKeyType="search"
           autoFocus
         />
         <Pressable style={styles.searchButton} onPress={runSearch}>
-          <Text style={styles.searchButtonText}>검색</Text>
+          <Text style={styles.searchButtonText}>{t.search.button}</Text>
         </Pressable>
       </View>
 
@@ -104,7 +106,7 @@ export default function SearchScreen() {
         keyExtractor={(item) => String(item.id)}
         ListEmptyComponent={
           searched && !loading && !error ? (
-            <Text style={styles.original}>검색 결과가 없어요.</Text>
+            <Text style={styles.original}>{t.search.noResults}</Text>
           ) : undefined
         }
         contentContainerStyle={{ gap: 10, paddingTop: 18, paddingBottom: 50 }}
@@ -122,7 +124,7 @@ export default function SearchScreen() {
                 <Text style={styles.title}>{item.title}</Text>
                 <Text style={styles.original}>{item.original_title}</Text>
                 <Text style={styles.year}>
-                  {item.release_date ? item.release_date.slice(0, 4) : "연도 미상"}
+                  {item.release_date ? item.release_date.slice(0, 4) : t.search.unknownYear}
                 </Text>
               </View>
               <Text style={styles.arrow}>›</Text>

@@ -17,6 +17,7 @@ import { CHECKPOINTS, formatCheckpoint, formatDelay } from "../lib/checkpoints";
 import { ResonanceStrip } from "../components/resonance-strip";
 import { posterUrl } from "../lib/tmdb";
 import { fonts } from "../lib/typography";
+import { useT } from "../lib/i18n";
 
 // 알림은 정해진 시점 "이후"에만 울리므로(밤에는 아침으로 미룸), 경과 시간 기준으로 열면 알림보다 먼저 열린다.
 function hoursSince(iso: string) {
@@ -24,6 +25,7 @@ function hoursSince(iso: string) {
 }
 
 export default function MovieScreen() {
+  const t = useT();
   const { id } = useLocalSearchParams<{ id?: string }>();
   const [record, setRecord] = useState<YeounRecord | null>(null);
   const [missing, setMissing] = useState(false);
@@ -55,12 +57,12 @@ export default function MovieScreen() {
   const remove = () => {
     if (!record) return;
     Alert.alert(
-      "기록을 삭제할까요?",
-      "첫인상과 여운 기록이 모두 삭제됩니다.",
+      t.movie.deleteTitle,
+      t.movie.deleteBody,
       [
-        { text: "취소", style: "cancel" },
+        { text: t.common.cancel, style: "cancel" },
         {
-          text: "삭제",
+          text: t.common.delete,
           style: "destructive",
           onPress: async () => {
             await cancelReminders(record.id).catch(console.warn);
@@ -76,7 +78,7 @@ export default function MovieScreen() {
     return (
       <SafeAreaView style={styles.center}>
         <Text style={styles.loading}>
-          {missing ? "기록을 찾지 못했어요." : "기록을 불러오는 중..."}
+          {missing ? t.common.recordNotFound : t.movie.loading}
         </Text>
       </SafeAreaView>
     );
@@ -96,16 +98,16 @@ export default function MovieScreen() {
             <Text style={styles.title}>{record.title}</Text>
             <Text style={styles.meta}>
               <Text style={styles.metaNum}>
-                {new Date(record.watchedAt).toLocaleDateString("ko-KR")}
+                {new Date(record.watchedAt).toLocaleDateString(t.dateLocale)}
               </Text>
-              {(record.rewatchIndex ?? 1) > 1 ? ` · ${record.rewatchIndex}회차` : ""}
+              {(record.rewatchIndex ?? 1) > 1 ? ` · ${t.common.viewing(record.rewatchIndex ?? 1)}` : ""}
             </Text>
           </View>
         </View>
 
         {!!record.note && (
           <View style={styles.noteBox}>
-            <Text style={styles.noteLabel}>그날 남긴 한 줄</Text>
+            <Text style={styles.noteLabel}>{t.movie.noteLabel}</Text>
             <Text style={styles.noteText}>{record.note}</Text>
           </View>
         )}
@@ -113,17 +115,17 @@ export default function MovieScreen() {
         <View style={styles.statementBox}>
           {type && (
             <Text style={styles.typeBadge}>
-              {TYPE_INFO[type].en} · {TYPE_INFO[type].label}
+              {t.typeBadge(TYPE_INFO[type].en, TYPE_INFO[type].label)}
             </Text>
           )}
           <Text style={styles.statement}>{describeChange(history)}</Text>
           {type && <Text style={styles.typeBody}>{TYPE_INFO[type].body}</Text>}
         </View>
 
-        <Text style={styles.sectionTitle}>여운의 흐름</Text>
+        <Text style={styles.sectionTitle}>{t.movie.flow}</Text>
         <ResonanceStrip history={history} posterUri={image} delayHours={firstDelay} />
 
-        <Text style={[styles.sectionTitle, styles.sectionTitleSpaced]}>시간에 남은 정도</Text>
+        <Text style={[styles.sectionTitle, styles.sectionTitleSpaced]}>{t.movie.timeline}</Text>
 
         <View style={styles.timeline}>
           {history.map((entry) => (
@@ -157,7 +159,7 @@ export default function MovieScreen() {
               })
             }
           >
-            <Text style={styles.recheckTitle}>{c.label}의 여운 기록하기</Text>
+            <Text style={styles.recheckTitle}>{t.movie.recordCheckpoint(c.label)}</Text>
             <Text style={styles.recheckSub}>{c.prompt}</Text>
           </Pressable>
         ))}
@@ -167,7 +169,7 @@ export default function MovieScreen() {
             style={styles.secondary}
             onPress={() => router.push({ pathname: "/share", params: { id: record.id } })}
           >
-            <Text style={styles.secondaryText}>여운 카드 공유</Text>
+            <Text style={styles.secondaryText}>{t.movie.shareCard}</Text>
           </Pressable>
           {viewingCount > 1 && (
             <Pressable
@@ -176,7 +178,7 @@ export default function MovieScreen() {
                 router.push({ pathname: "/compare", params: { tmdbId: String(record.tmdbId) } })
               }
             >
-              <Text style={styles.secondaryText}>회차 비교</Text>
+              <Text style={styles.secondaryText}>{t.movie.compare}</Text>
             </Pressable>
           )}
         </View>
@@ -186,10 +188,10 @@ export default function MovieScreen() {
             style={styles.secondary}
             onPress={() => router.push({ pathname: "/edit", params: { id: record.id } })}
           >
-            <Text style={styles.secondaryText}>기록 수정</Text>
+            <Text style={styles.secondaryText}>{t.movie.edit}</Text>
           </Pressable>
           <Pressable style={styles.deleteButton} onPress={remove}>
-            <Text style={styles.deleteText}>삭제</Text>
+            <Text style={styles.deleteText}>{t.common.delete}</Text>
           </Pressable>
         </View>
       </ScrollView>

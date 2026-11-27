@@ -17,19 +17,24 @@ import { usePosterColors } from "../lib/poster-color";
 import { ColorBand } from "../components/color-band";
 import { posterUrl } from "../lib/tmdb";
 import { fonts } from "../lib/typography";
+import { getT, useT } from "../lib/i18n";
 
 type SortMode = "latest" | "score";
 type Filter = "all" | "rewatch" | ResonanceType;
 
-const FILTERS: { key: Filter; label: string }[] = [
-  { key: "all", label: "전체" },
-  { key: "deepening", label: TYPE_INFO.deepening.label },
-  { key: "lasting", label: TYPE_INFO.lasting.label },
-  { key: "fading", label: TYPE_INFO.fading.label },
-  { key: "rewatch", label: "재관람" },
-];
+const FILTERS: { key: Filter; readonly label: string }[] = (
+  ["all", "deepening", "lasting", "fading", "rewatch"] as Filter[]
+).map((key) => ({
+  key,
+  get label() {
+    if (key === "all") return getT().archive.all;
+    if (key === "rewatch") return getT().archive.rewatch;
+    return TYPE_INFO[key].label;
+  },
+}));
 
 export default function ArchiveScreen() {
+  const t = useT();
   const [records, setRecords] = useState<YeounRecord[]>([]);
   const [sortMode, setSortMode] = useState<SortMode>("latest");
   const [query, setQuery] = useState("");
@@ -80,9 +85,9 @@ export default function ArchiveScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.eyebrow}>YOUR ARCHIVE</Text>
-        <Text style={styles.title}>기억에 남은 영화들</Text>
+        <Text style={styles.title}>{t.archive.title}</Text>
         <Text style={styles.sub}>
-          <Text style={styles.subNum}>{records.length}</Text>개의 관람 기록
+          {t.archive.count(records.length)}
         </Text>
 
         <View style={{ marginTop: 18, marginBottom: 6 }}>
@@ -92,7 +97,7 @@ export default function ArchiveScreen() {
         <TextInput
           value={query}
           onChangeText={setQuery}
-          placeholder="제목으로 찾기"
+          placeholder={t.archive.searchPlaceholder}
           placeholderTextColor="#555"
           style={styles.search}
           returnKeyType="search"
@@ -117,7 +122,7 @@ export default function ArchiveScreen() {
             onPress={() => setSortMode("latest")}
           >
             <Text style={[styles.filterText, sortMode === "latest" && styles.filterTextActive]}>
-              최근순
+              {t.archive.latest}
             </Text>
           </Pressable>
 
@@ -126,7 +131,7 @@ export default function ArchiveScreen() {
             onPress={() => setSortMode("score")}
           >
             <Text style={[styles.filterText, sortMode === "score" && styles.filterTextActive]}>
-              여운순
+              {t.archive.byScore}
             </Text>
           </Pressable>
         </View>
@@ -141,7 +146,7 @@ export default function ArchiveScreen() {
         keyboardShouldPersistTaps="handled"
         ListEmptyComponent={
           <Text style={styles.empty}>
-            {records.length ? "조건에 맞는 기록이 없어요." : "아직 기록이 없어요."}
+            {records.length ? t.archive.noMatch : t.archive.empty}
           </Text>
         }
         renderItem={({ item }) => {
@@ -161,7 +166,7 @@ export default function ArchiveScreen() {
               <Text numberOfLines={1} style={styles.movieTitle}>{item.title}</Text>
               <Text style={styles.meta}>
                 <Text style={styles.metaNum}>{latest.score}</Text>
-                {(item.rewatchIndex ?? 1) > 1 ? ` · ${item.rewatchIndex}회차` : ""}
+                {(item.rewatchIndex ?? 1) > 1 ? ` · ${t.common.viewing(item.rewatchIndex ?? 1)}` : ""}
               </Text>
             </Pressable>
           );

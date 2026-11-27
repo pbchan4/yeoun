@@ -6,6 +6,7 @@ import { TYPE_INFO } from "../lib/resonance";
 import type { ResonanceEntry } from "../lib/storage";
 import { fonts } from "../lib/typography";
 import type { CaptureView } from "../lib/share";
+import { useT } from "../lib/i18n";
 
 /** 인스타 스토리 비율(9:16). 캡처하면 기기 배율만큼 커진다. */
 export const CARD_WIDTH = 320;
@@ -29,6 +30,7 @@ export const ShareCard = forwardRef<CaptureView, Props>(function ShareCard(
   { title, posterUri, history, statement, type, note, rewatchIndex, watchedAt, onPosterLoad },
   ref
 ) {
+  const t = useT();
   const n = Math.max(history.length, 1);
   const frameW = Math.min(64, (INNER - 8 * (n - 1)) / n);
 
@@ -89,8 +91,8 @@ export const ShareCard = forwardRef<CaptureView, Props>(function ShareCard(
       )}
 
       <View style={styles.footer}>
-        <Text style={styles.footerText}>{new Date(watchedAt).toLocaleDateString("ko-KR")}</Text>
-        <Text style={styles.footerText}>영화가 끝난 뒤, 여운은 시작된다.</Text>
+        <Text style={styles.footerText}>{new Date(watchedAt).toLocaleDateString(t.dateLocale)}</Text>
+        <Text style={styles.footerText}>{t.common.slogan}</Text>
       </View>
     </View>
   );
